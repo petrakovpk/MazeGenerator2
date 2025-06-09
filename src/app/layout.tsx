@@ -11,13 +11,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" suppressHydrationWarning>
+    <html lang="ru" data-theme="cupcake" suppressHydrationWarning>
       <head />
       <body className={inter.className}>
         <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
+          attribute="data-theme"
+          defaultTheme="cupcake"
+          enableSystem={false}
           disableTransitionOnChange
         >
           {children}

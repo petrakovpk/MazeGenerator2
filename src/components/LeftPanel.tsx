@@ -3,12 +3,16 @@ import { Levels, PlacingObject } from '@/app/page';
 import { data, objectCategories } from '@/lib/data';
 import Image from 'next/image';
 import { ObjectCategory } from './RightPanel';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
+import {
+  Apple,
+  Component,
+  PlayCircle,
+  PlusCircle,
+  Trees,
+  Waves,
+  CheckCircle2,
+  Sailboat,
+} from 'lucide-react';
 
 const SIZABLE_CATEGORIES: ObjectCategory[] = ['fruits', 'stones', 'water', 'trees', 'finish', 'extra'];
 const SINGULAR_RUSSIAN_MAP: Partial<Record<ObjectCategory, string>> = {
@@ -26,6 +30,17 @@ const SINGULAR_ENGLISH_MAP: Partial<Record<ObjectCategory, string>> = {
     finish: 'finish',
     extra: 'extra',
     water: 'water',
+};
+
+const iconMap: Record<string, React.ElementType> = {
+  islands: Sailboat,
+  start: PlayCircle,
+  fruits: Apple,
+  stones: Component,
+  water: Waves,
+  trees: Trees,
+  finish: CheckCircle2,
+  extra: PlusCircle,
 };
 
 export type LeftPanelContent = 'islands' | 'settings' | 'levels' | ObjectCategory | null;
@@ -176,222 +191,220 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
   };
 
   const handleDimensionSave = () => {
-    if (selectedItemForSizing && selectedCategory) {
-      const changeHandlers = {
-        fruits: onFruitDimensionChange,
-        stones: onStoneDimensionChange,
-        water: onWaterDimensionChange,
-        trees: onTreeDimensionChange,
-        finish: onFinishDimensionChange,
-        extra: onExtraDimensionChange,
-      };
-      const handler = changeHandlers[selectedCategory as keyof typeof changeHandlers];
-      if (handler) {
-        handler(selectedItemForSizing, itemSize);
-      }
+    if (!selectedItemForSizing || !selectedCategory) return;
+
+    switch (selectedCategory) {
+      case 'fruits':
+        onFruitDimensionChange(selectedItemForSizing, itemSize);
+        break;
+      case 'stones':
+        onStoneDimensionChange(selectedItemForSizing, itemSize);
+        break;
+      case 'water':
+        onWaterDimensionChange(selectedItemForSizing, itemSize);
+        break;
+      case 'trees':
+        onTreeDimensionChange(selectedItemForSizing, itemSize);
+        break;
+      case 'finish':
+        onFinishDimensionChange(selectedItemForSizing, itemSize);
+        break;
+      case 'extra':
+        onExtraDimensionChange(selectedItemForSizing, itemSize);
+        break;
+    }
+
+    if (placingObject) {
+      setPlacingObject({
+        ...placingObject,
+        width: itemSize.width,
+        height: itemSize.height,
+      });
     }
   };
 
   const renderContent = () => {
     if (content === 'levels') {
       return (
-        <div className="p-4 flex flex-col space-y-2">
-          <Button onClick={onCreateLevel} className="w-full">
-            Создать новый уровень
-          </Button>
-          <div className="flex flex-col space-y-1 mt-2">
+        <div className="p-4">
+          <h2 className="text-xl font-bold mb-4">Уровни</h2>
+          <div className="flex flex-col gap-2">
             {Object.keys(levels).map((name) => (
-              <Button
+              <button
                 key={name}
-                variant={currentLevelName === name ? 'secondary' : 'ghost'}
+                className={`btn ${name === currentLevelName ? 'btn-primary' : 'btn-ghost'}`}
                 onClick={() => loadLevel(name)}
-                className="w-full justify-start"
               >
                 {name}
-              </Button>
+              </button>
             ))}
           </div>
+          <button 
+            className="btn btn-outline btn-sm mt-4 w-full" 
+            onClick={onCreateLevel}
+          >
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Создать уровень
+          </button>
         </div>
       );
     }
-    
+
     if (content === 'settings') {
       return (
-        <div className="p-4 flex flex-col space-y-4">
-          <h3 className="text-lg font-medium">Настройки</h3>
-          <div className="grid gap-2">
-            <Label htmlFor="canvas-width">Ширина</Label>
-            <Input
-              id="canvas-width"
+        <div className="p-4">
+          <h2 className="text-xl font-bold mb-4">Настройки</h2>
+          <div className="form-control w-full">
+            <label className="label">
+              <span className="label-text">Ширина карты (пикс.)</span>
+            </label>
+            <input
+              className="input input-bordered w-full"
               type="number"
               value={canvasSize.width}
-              onChange={(e) => handleSizeChange('width', e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSizeChange('width', e.target.value)}
+              min={100}
+              step={50}
             />
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="canvas-height">Высота</Label>
-            <Input
-              id="canvas-height"
+          <div className="form-control w-full mt-2">
+            <label className="label">
+              <span className="label-text">Высота карты (пикс.)</span>
+            </label>
+            <input
+              className="input input-bordered w-full"
               type="number"
               value={canvasSize.height}
-              onChange={(e) => handleSizeChange('height', e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSizeChange('height', e.target.value)}
+              min={100}
+              step={50}
             />
           </div>
         </div>
       );
     }
 
-    const categoryData = selectedCategory ? data[selectedCategory] : null;
-    const isSizable = selectedCategory && SIZABLE_CATEGORIES.includes(selectedCategory);
-
-    const randomItemName = selectedCategory ? `random_${SINGULAR_ENGLISH_MAP[selectedCategory] || selectedCategory}` : '';
-    const randomItemImage = selectedCategory ? `/assets/${selectedCategory}/random_${SINGULAR_ENGLISH_MAP[selectedCategory] || selectedCategory}.png` : '';
-    const randomItemAltText = selectedCategory ? `Случайный ${SINGULAR_RUSSIAN_MAP[selectedCategory] || objectCategories[selectedCategory]}` : '';
+    // Категории объектов
+    const categoryEntries = Object.entries(objectCategories) as [ObjectCategory, string][];
+    const categories = categoryEntries.map(([id, name]) => ({
+      id,
+      name,
+      icon: iconMap[id],
+    }));
 
     return (
-      <div className="p-4 flex flex-col gap-4 h-full">
-        <div>
-          <h3 className="text-lg font-medium mb-4">Элементы</h3>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(objectCategories).map(([key, name]) => (
-              <Button
-                key={key}
-                variant={selectedCategory === key ? 'secondary' : 'outline'}
-                size="sm"
-                onClick={() => setSelectedCategory(key as ObjectCategory)}
+      <div>
+        <div className="p-2 bg-base-200">
+          <h2 className="text-lg font-medium mb-2">Категории объектов</h2>
+          <div className="flex flex-wrap gap-1">
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                className={`btn btn-sm ${content === category.id ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => setContent(category.id)}
               >
-                {name}
-              </Button>
+                {category.name}
+              </button>
             ))}
           </div>
         </div>
 
-        <div className="flex-grow overflow-y-auto">
-          {selectedCategory && categoryData && (
-            <>
-              <Separator />
-              <div>
-                <h3 className="text-lg font-medium capitalize mt-6 mb-4">
-                  {objectCategories[selectedCategory]}
-                </h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {categoryData.map((item: any) => (
-                    <button
-                      key={item.name}
-                      className={cn(
-                        'p-2 rounded-md border-2 hover:bg-accent',
-                        placingObject?.name === item.name ? 'border-primary' : 'border-transparent'
-                      )}
-                      onClick={() => handleItemClick(item)}
-                    >
-                      <div className="flex flex-col items-center gap-1">
-                        <Image src={item.image} alt={item.name} width={56} height={56} />
-                      </div>
-                    </button>
-                  ))}
-                  {isSizable && selectedCategory && (
-                    <button
-                      key={randomItemName}
-                      className={cn(
-                        'p-2 rounded-md border-2 hover:bg-accent',
-                        placingObject?.name === randomItemName ? 'border-primary' : 'border-transparent'
-                      )}
-                      onClick={() => {
-                        if (placingObject?.name === randomItemName) {
-                          setPlacingObject(null);
-                          setSelectedItemForSizing(null);
-                        } else {
-                          const allDimensions = {
-                              fruits: fruitDimensions,
-                              stones: stoneDimensions,
-                              water: waterDimensions,
-                              trees: treeDimensions,
-                              finish: finishDimensions,
-                              extra: extraDimensions,
-                          };
-                          const categoryKey = selectedCategory as keyof typeof allDimensions;
-                          const categoryDimensions = allDimensions[categoryKey];
-                          const savedDim = categoryDimensions ? categoryDimensions[randomItemName] : undefined;
+        <div className="p-4">
+          <h2 className="text-xl font-bold mb-4">{
+            content === 'islands' ? 'Остров' :
+            content === 'start' ? 'Старт' :
+            content === 'fruits' ? 'Фрукты' :
+            content === 'stones' ? 'Камни' :
+            content === 'water' ? 'Вода' :
+            content === 'trees' ? 'Деревья' :
+            content === 'finish' ? 'Финиш' :
+            'Экстра'
+          }</h2>
 
-                          const width = savedDim?.width || 64;
-                          const height = savedDim?.height || 64;
-                          setPlacingObject({
-                            name: randomItemName,
-                            image: randomItemImage,
-                            width,
-                            height,
-                            originalWidth: width,
-                            originalHeight: height,
-                          });
-                          setSelectedItemForSizing(randomItemName);
-                        }
-                      }}
-                    >
-                      <div className="flex flex-col items-center gap-1">
-                        <Image src={randomItemImage} alt={randomItemAltText} width={56} height={56} />
-                      </div>
-                    </button>
-                  )}
+          {content && (
+            <div className="grid grid-cols-3 gap-2">
+              {data[content]?.map((item, index) => (
+                <div 
+                  key={`${item.name}-${index}`}
+                  className={`flex flex-col items-center p-2 rounded-lg cursor-pointer transition-all border ${placingObject?.name === item.name ? 'border-primary bg-primary/20' : 'border-base-300 hover:bg-base-200'}`}
+                  onClick={() => handleItemClick(item)}
+                >
+                  <div className="relative w-16 h-16 flex items-center justify-center">
+                    <Image
+                      src={item.image}
+                      alt={item.name}
+                      width={64}
+                      height={64}
+                      className="object-contain max-h-16"
+                    />
+                  </div>
                 </div>
+              ))}
+            </div>
+          )}
+
+          {selectedItemForSizing && SIZABLE_CATEGORIES.includes(content as ObjectCategory) && (
+            <div className="mt-4 p-3 border border-base-300 rounded-lg bg-base-100">
+              <h3 className="font-medium mb-2">Настройка размера</h3>
+              
+              <div className="form-control w-full">
+                <label className="label">
+                  <span className="label-text">Ширина (пикс.)</span>
+                </label>
+                <input
+                  className="input input-bordered w-full"
+                  type="number"
+                  value={Math.round(itemSize.width)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleDimensionChange('width', e.target.value, content as any)}
+                  min={1}
+                />
               </div>
-            </>
+              
+              <div className="form-control w-full mt-2">
+                <label className="label">
+                  <span className="label-text">Высота (пикс.)</span>
+                </label>
+                <input
+                  className="input input-bordered w-full"
+                  type="number"
+                  value={Math.round(itemSize.height)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleDimensionChange('height', e.target.value, content as any)}
+                  min={1}
+                />
+              </div>
+              
+              <div className="form-control mt-2">
+                <label className="label cursor-pointer">
+                  <span className="label-text">Сохранять пропорции</span>
+                  <input
+                    type="checkbox"
+                    className="toggle toggle-primary"
+                    checked={keepAspectRatio}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKeepAspectRatio(e.target.checked)}
+                  />
+                </label>
+              </div>
+              
+              <button
+                className="btn btn-primary btn-sm mt-3 w-full"
+                onClick={handleDimensionSave}
+              >
+                Сохранить размер
+              </button>
+            </div>
           )}
         </div>
-
-        {selectedItemForSizing && (selectedCategory === 'fruits' || selectedCategory === 'stones' || selectedCategory === 'water' || selectedCategory === 'trees' || selectedCategory === 'finish' || selectedCategory === 'extra') && (
-          <div>
-            <Separator />
-            <h3 className="text-lg font-medium capitalize mt-6 mb-4">
-              Размер для: {selectedItemForSizing}
-            </h3>
-            <div className="flex gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="item-width">Ширина</Label>
-                <Input
-                  id="item-width"
-                  type="number"
-                  value={itemSize.width}
-                  onChange={(e) =>
-                    handleDimensionChange(
-                      'width',
-                      e.target.value,
-                      selectedCategory as 'fruits' | 'stones' | 'water' | 'trees' | 'finish' | 'extra'
-                    )
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="item-height">Высота</Label>
-                <Input
-                  id="item-height"
-                  type="number"
-                  value={itemSize.height}
-                  onChange={(e) =>
-                    handleDimensionChange(
-                      'height',
-                      e.target.value,
-                      selectedCategory as 'fruits' | 'stones' | 'water' | 'trees' | 'finish' | 'extra'
-                    )
-                  }
-                />
-              </div>
-            </div>
-            <div className="flex items-center space-x-2 mt-4">
-              <Checkbox
-                id="keep-aspect-ratio"
-                checked={keepAspectRatio}
-                onCheckedChange={(checked) => setKeepAspectRatio(Boolean(checked))}
-              />
-              <Label htmlFor="keep-aspect-ratio">Сохранять пропорции</Label>
-            </div>
-            <Button className="mt-4" onClick={handleDimensionSave}>Сохранить</Button>
-          </div>
-        )}
       </div>
     );
   };
 
-  return <div className="py-2">{renderContent()}</div>;
+  return (
+    <div className="h-full flex flex-col border-r bg-base-100">
+      <div className="overflow-auto">
+        {renderContent()}
+      </div>
+    </div>
+  );
 };
 
 export default LeftPanel;

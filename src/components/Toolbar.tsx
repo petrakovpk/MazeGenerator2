@@ -1,5 +1,4 @@
 import { Pointer, Map, Save, PanelRightOpen, PanelRightClose, RotateCcw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 export type Tool = 'pointer' | 'placing' | 'map';
 
@@ -22,53 +21,58 @@ const Toolbar = ({
   onToggleRightPanel,
   onResetRightPanel 
 }: ToolbarProps) => (
-  <div className="flex justify-between items-center p-2 border-b bg-white dark:bg-zinc-950">
-    <div className="flex gap-2">
-      <Button
-        variant={activeTool === 'pointer' ? 'secondary' : 'ghost'}
-        size="icon"
-        onClick={() => onToolSelect('pointer')}
-        aria-label="Pointer"
-      >
-        <Pointer className="h-5 w-5" />
-      </Button>
+  <div className="navbar bg-base-100 shadow-sm border-b">
+    <div className="navbar-start">
+      <div className="btn-group">
+        <button
+          className={`btn btn-sm ${activeTool === 'pointer' ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={() => onToolSelect('pointer')}
+          data-tip="Указатель (выбор и перемещение объектов)"
+        >
+          <Pointer className="h-4 w-4" />
+        </button>
+      </div>
     </div>
-    <div className="flex gap-2">
-      <Button
-        variant={activeTool === 'map' ? 'secondary' : 'ghost'}
-        size="icon"
-        onClick={() => onToolSelect('map')}
-        aria-label="Map"
-      >
-        <Map className="h-5 w-5" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onToggleRightPanel}
-        aria-label={isRightPanelVisible ? "Скрыть правую панель" : "Показать правую панель"}
-        title={isRightPanelVisible ? "Скрыть правую панель" : "Показать правую панель"}
-      >
-        {isRightPanelVisible ? <PanelRightClose className="h-5 w-5" /> : <PanelRightOpen className="h-5 w-5" />}
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onResetRightPanel}
-        aria-label="Сбросить размер правой панели"
-        title="Сбросить размер правой панели"
-      >
-        <RotateCcw className="h-5 w-5" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onSave}
-        aria-label="Save"
-        disabled={isSaving}
-      >
-        <Save className="h-5 w-5" />
-      </Button>
+    
+    <div className="navbar-end">
+      <div className="btn-group">
+        <button
+          className={`btn btn-sm ${activeTool === 'map' ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={() => onToolSelect('map')}
+          data-tip="Редактор карты"
+        >
+          <Map className="h-4 w-4" />
+        </button>
+        
+        <div className="divider divider-horizontal mx-1"></div>
+        
+        <button
+          className="btn btn-sm btn-ghost"
+          onClick={onToggleRightPanel}
+          data-tip={isRightPanelVisible ? "Скрыть правую панель" : "Показать правую панель"}
+        >
+          {isRightPanelVisible ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+        </button>
+        
+        <button
+          className="btn btn-sm btn-ghost"
+          onClick={onResetRightPanel}
+          data-tip="Сбросить размер правой панели"
+        >
+          <RotateCcw className="h-4 w-4" />
+        </button>
+        
+        <div className="divider divider-horizontal mx-1"></div>
+        
+        <button
+          className="btn btn-sm btn-ghost"
+          onClick={onSave}
+          disabled={isSaving}
+          data-tip={isSaving ? "Сохранение..." : "Сохранить уровень"}
+        >
+          <Save className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   </div>
 );
