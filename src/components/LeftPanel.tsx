@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Levels, PlacingObject } from '@/app/page';
-import { data, objectCategories } from '@/lib/data';
-import Image from 'next/image';
+import { Levels, PlacingObject } from '../App';
+import { data, objectCategories } from '../lib/data';
 import { ObjectCategory } from './RightPanel';
 import {
   Apple,
@@ -330,7 +329,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
                   onClick={() => handleItemClick(item)}
                 >
                   <div className="relative w-16 h-16 flex items-center justify-center">
-                    <Image
+                    <img
                       src={item.image}
                       alt={item.name}
                       width={64}

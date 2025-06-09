@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapObject } from '@/app/page';
+import { MapObject } from '../App';
 import { Trash2, Lock, Unlock } from 'lucide-react';
 import ObjectTree from './ObjectTree';
 

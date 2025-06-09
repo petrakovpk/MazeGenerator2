@@ -1,45 +1,22 @@
-import animate from 'tailwindcss-animate'
-import daisyui from 'daisyui'
+import type { Config } from 'tailwindcss'
 
-/** @type {import('tailwindcss').Config} */
-export const config = {
-  darkMode: ["class"],
+const config: Config & { daisyui?: any } = {
   content: [
-    './pages/**/*.{ts,tsx}',
-    './components/**/*.{ts,tsx}',
-    './app/**/*.{ts,tsx}',
-    './src/**/*.{ts,tsx}',
-	],
-  prefix: "",
+    './src/**/*.{js,ts,jsx,tsx}',
+  ],
   theme: {
-    container: {
-      center: true,
-      padding: "2rem",
-      screens: {
-        "2xl": "1400px",
-      },
-    },
-    extend: {
-      keyframes: {
-        "accordion-down": {
-          from: { height: "0" },
-          to: { height: "var(--radix-accordion-content-height)" },
-        },
-        "accordion-up": {
-          from: { height: "var(--radix-accordion-content-height)" },
-          to: { height: "0" },
-        },
-      },
-      animation: {
-        "accordion-down": "accordion-down 0.2s ease-out",
-        "accordion-up": "accordion-up 0.2s ease-out",
-      },
-    },
+    extend: {},
   },
-  plugins: [animate, daisyui],
+  plugins: [require("daisyui")],
   daisyui: {
-    themes: ["cupcake", "dark"],
+    themes: ["cupcake"], // Только тема cupcake
+    darkTheme: "cupcake", // Принудительно cupcake даже в темном режиме
+    base: true, // Базовые стили
+    styled: true, // Стилизованные компоненты
+    utils: true, // Утилиты
+    prefix: "", // Без префикса
+    logs: true, // Логи для дебага
   },
 }
 
-export default config; 
+export default config 

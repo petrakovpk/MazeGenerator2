@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MapObject, PlacingObject } from '@/app/page';
+import { MapObject, PlacingObject } from '../App';
 import { Stage, Layer, Image as KonvaImage, Transformer, Group, Rect } from 'react-konva';
 import useImage from 'use-image';
 import { v4 as uuidv4 } from 'uuid';
 import Konva from 'konva';
-import { data } from '@/lib/data';
+import { data } from '../lib/data';
 
 interface MapObjectComponentProps {
   shapeProps: MapObject;

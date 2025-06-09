@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapObject } from '@/app/page';
+import { MapObject } from '../App';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
