@@ -30,6 +30,7 @@
     "react-konva": "^19.0.5",
     "sonner": "^2.0.5",
     "tailwind-merge": "^3.3.0",
+    "tailwindcss-animate": "^1.0.7",
     "use-image": "^1.1.4",
     "uuid": "^11.1.0"
   },
@@ -42,8 +43,6 @@
     "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
-    "postcss-preset-mantine": "^1.17.0",
-    "postcss-simple-vars": "^7.0.1",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.4",
     "typescript": "^5"

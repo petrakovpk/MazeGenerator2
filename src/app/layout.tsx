@@ -1,11 +1,7 @@
 'use client';
-import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import '@mantine/core/styles.css';
-import '@mantine/notifications/styles.css';
-import { ColorSchemeScript, MantineProvider } from '@mantine/core';
-import { Notifications } from '@mantine/notifications';
+import { ThemeProvider } from "next-themes";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -15,15 +11,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru">
-      <head>
-        <ColorSchemeScript />
-      </head>
-      <body>
-        <MantineProvider>
-          <Notifications />
+    <html lang="ru" suppressHydrationWarning>
+      <head />
+      <body className={inter.className}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
           {children}
-        </MantineProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

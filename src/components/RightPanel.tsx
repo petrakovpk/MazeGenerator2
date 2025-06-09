@@ -1,20 +1,11 @@
 import React, { useState } from 'react';
 import { MapObject } from '@/app/page';
-import {
-  Stack,
-  Title,
-  Text,
-  TextInput,
-  NumberInput,
-  Checkbox,
-  Button,
-  Paper,
-  Divider,
-  Group,
-  ActionIcon,
-  SegmentedControl,
-} from '@mantine/core';
-import { IconTrash } from '@tabler/icons-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Trash2 } from 'lucide-react';
 import ObjectTree from './ObjectTree';
 
 export type ObjectCategory = 'islands' | 'start' | 'fruits' | 'stones' | 'water' | 'trees' | 'finish' | 'extra';
@@ -84,123 +75,146 @@ const RightPanel: React.FC<RightPanelProps> = ({
 
   if (leftPanelContent === 'levels') {
     return (
-      <Stack>
-        <Title order={4}>Размеры уровня</Title>
-        <NumberInput
-          label="Ширина"
-          id="width"
-          value={canvasSize.width}
-          onChange={(value) => handleCanvasSizeChange('width', value)}
-          min={100}
-        />
-        <NumberInput
-          label="Высота"
-          id="height"
-          value={canvasSize.height}
-          onChange={(value) => handleCanvasSizeChange('height', value)}
-          min={100}
-        />
-      </Stack>
+      <div className="p-4 space-y-4">
+        <h3 className="text-lg font-medium">Размеры уровня</h3>
+        <div className="grid gap-2">
+          <Label htmlFor="width">Ширина</Label>
+          <Input
+            id="width"
+            type="number"
+            value={canvasSize.width}
+            onChange={(e) => handleCanvasSizeChange('width', e.target.value)}
+            min={100}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="height">Высота</Label>
+          <Input
+            id="height"
+            type="number"
+            value={canvasSize.height}
+            onChange={(e) => handleCanvasSizeChange('height', e.target.value)}
+            min={100}
+          />
+        </div>
+      </div>
     );
   }
 
   return (
-    <Stack>
-      <SegmentedControl
-        value={view}
-        onChange={(value) => setView(value as 'properties' | 'tree')}
-        data={[
-          { label: 'Свойства', value: 'properties' },
-          { label: 'Дерево', value: 'tree' },
-        ]}
-        fullWidth
-      />
-
-      {view === 'tree' && (
-        <Stack>
-          <Title order={4}>Дерево объектов</Title>
-          <ObjectTree objects={mapObjects} onSelectObject={onSelectObject} selectedObject={selectedObject} />
-        </Stack>
-      )}
-      
-      {view === 'properties' && (
-        <>
-          <Group justify="space-between">
-            <Title order={4}>Свойства объекта</Title>
-            {selectedObject && (
-              <ActionIcon variant="light" color="red" onClick={() => onDeleteObject(selectedObject.id)}>
-                <IconTrash size={18} />
-              </ActionIcon>
+    <div className="p-4 h-full flex flex-col">
+      <Tabs value={view} onValueChange={(value) => setView(value as 'properties' | 'tree')} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="properties">Свойства</TabsTrigger>
+          <TabsTrigger value="tree">Дерево</TabsTrigger>
+        </TabsList>
+        <TabsContent value="tree" className="flex-grow">
+          <div className="space-y-4 mt-4">
+            <h3 className="text-lg font-medium">Дерево объектов</h3>
+            <ObjectTree objects={mapObjects} onSelectObject={onSelectObject} selectedObject={selectedObject} />
+          </div>
+        </TabsContent>
+        <TabsContent value="properties" className="flex-grow">
+          <div className="space-y-4 mt-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium">Свойства объекта</h3>
+              {selectedObject && (
+                <Button variant="destructive" size="icon" onClick={() => onDeleteObject(selectedObject.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            
+            {!selectedObject ? (
+              <p className="text-muted-foreground">Объект не выбран</p>
+            ) : (
+              <>
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Имя</Label>
+                  <Input
+                    id="name"
+                    value={selectedObject.name}
+                    onChange={(event) => onUpdateObject({ ...selectedObject, name: event.currentTarget.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="width">Ширина (пикс.)</Label>
+                  <Input
+                    id="width"
+                    type="number"
+                    value={Math.round(selectedObject.width)}
+                    onChange={(e) => handleInputChange('width', e.target.value)}
+                    min={1}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="height">Высота (пикс.)</Label>
+                  <Input
+                    id="height"
+                    type="number"
+                    value={Math.round(selectedObject.height)}
+                    onChange={(e) => handleInputChange('height', e.target.value)}
+                    min={1}
+                  />
+                </div>
+                {selectedObject.originalWidth && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="widthPercent">Ширина (%)</Label>
+                    <Input
+                      id="widthPercent"
+                      type="number"
+                      value={Math.round((selectedObject.width / selectedObject.originalWidth) * 100)}
+                      onChange={(e) => handleInputChange('widthPercent', e.target.value)}
+                      min={1}
+                    />
+                  </div>
+                )}
+                {selectedObject.originalHeight && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="heightPercent">Высота (%)</Label>
+                    <Input
+                      id="heightPercent"
+                      type="number"
+                      value={Math.round((selectedObject.height / selectedObject.originalHeight) * 100)}
+                      onChange={(e) => handleInputChange('heightPercent', e.target.value)}
+                      min={1}
+                    />
+                  </div>
+                )}
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="keepAspectRatio"
+                    checked={keepAspectRatio}
+                    onCheckedChange={(checked) => setKeepAspectRatio(Boolean(checked))}
+                  />
+                  <Label htmlFor="keepAspectRatio">Сохранять пропорции</Label>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => onUpdateObject({ ...selectedObject, flipX: !selectedObject.flipX })}>
+                      Отразить X
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => onUpdateObject({ ...selectedObject, flipY: !selectedObject.flipY })}>
+                      Отразить Y
+                  </Button>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="isLocked"
+                    checked={selectedObject.isLocked}
+                    onCheckedChange={(checked) => handleInputChange('isLocked', Boolean(checked))}
+                  />
+                  <Label htmlFor="isLocked">Заблокировать</Label>
+                </div>
+              </>
             )}
-          </Group>
-          
-          {!selectedObject ? (
-            <Text c="dimmed">Объект не выбран</Text>
-          ) : (
-            <>
-              <TextInput
-                label="Имя"
-                value={selectedObject.name}
-                onChange={(event) => onUpdateObject({ ...selectedObject, name: event.currentTarget.value })}
-              />
-              <NumberInput
-                label="Ширина (пикс.)"
-                id="width"
-                value={Math.round(selectedObject.width)}
-                onChange={(value) => handleInputChange('width', value)}
-                min={1}
-              />
-              <NumberInput
-                label="Высота (пикс.)"
-                id="height"
-                value={Math.round(selectedObject.height)}
-                onChange={(value) => handleInputChange('height', value)}
-                min={1}
-              />
-              {selectedObject.originalWidth && (
-                <NumberInput
-                  label="Ширина (%)"
-                  value={Math.round((selectedObject.width / selectedObject.originalWidth) * 100)}
-                  onChange={(value) => handleInputChange('widthPercent', value)}
-                  min={1}
-                />
-              )}
-              {selectedObject.originalHeight && (
-                <NumberInput
-                  label="Высота (%)"
-                  value={Math.round((selectedObject.height / selectedObject.originalHeight) * 100)}
-                  onChange={(value) => handleInputChange('heightPercent', value)}
-                  min={1}
-                />
-              )}
-              <Checkbox
-                checked={keepAspectRatio}
-                onChange={(event) => setKeepAspectRatio(event.currentTarget.checked)}
-                label="Сохранять пропорции"
-              />
-              <Group grow>
-                <Button 
-                  variant="default" 
-                  onClick={() => onUpdateObject({ ...selectedObject, flipX: !selectedObject.flipX })}>
-                    Отразить X
-                </Button>
-                <Button 
-                  variant="default" 
-                  onClick={() => onUpdateObject({ ...selectedObject, flipY: !selectedObject.flipY })}>
-                    Отразить Y
-                </Button>
-              </Group>
-              <Checkbox
-                id="isLocked"
-                label="Заблокировать"
-                checked={selectedObject.isLocked}
-                onChange={(event) => handleInputChange('isLocked', event.currentTarget.checked)}
-              />
-            </>
-          )}
-        </>
-      )}
-    </Stack>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 

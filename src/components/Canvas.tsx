@@ -113,7 +113,26 @@ const Canvas: React.FC<CanvasProps> = ({
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const groupRef = useRef<Konva.Group>(null);
-  const PADDING = 1000;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
+  const PADDING = 100;
+
+  useEffect(() => {
+    const updateSize = () => {
+      if (containerRef.current) {
+        const { clientWidth, clientHeight } = containerRef.current;
+        setContainerSize({ width: clientWidth, height: clientHeight });
+      }
+    };
+
+    updateSize();
+    const resizeObserver = new ResizeObserver(updateSize);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => resizeObserver.disconnect();
+  }, []);
 
   const getRelativePointerPosition = (node: Konva.Node | null) => {
     if (!node) return null;
@@ -182,18 +201,25 @@ const Canvas: React.FC<CanvasProps> = ({
   
   const [previewImage] = useImage(placingObject?.image || '', 'anonymous');
 
+  // Вычисляем позицию для центрирования карты
+  const stageWidth = Math.max(containerSize.width, canvasSize.width + PADDING * 2);
+  const stageHeight = Math.max(containerSize.height, canvasSize.height + PADDING * 2);
+  const offsetX = Math.max(PADDING, (containerSize.width - canvasSize.width) / 2);
+  const offsetY = Math.max(PADDING, (containerSize.height - canvasSize.height) / 2);
+
   return (
-    <Stage
-      ref={stageRef}
-      width={canvasSize.width + PADDING * 2}
-      height={canvasSize.height + PADDING * 2}
-      onClick={handleStageClick}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      className="bg-gray-100"
-    >
-      <Layer>
-        <Group ref={groupRef} x={PADDING} y={PADDING}>
+    <div ref={containerRef} className="w-full h-full">
+      <Stage
+        ref={stageRef}
+        width={containerSize.width}
+        height={containerSize.height}
+        onClick={handleStageClick}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        className="bg-gray-100"
+      >
+        <Layer>
+          <Group ref={groupRef} x={offsetX} y={offsetY}>
           <Rect
             name="level-background"
             width={canvasSize.width}
@@ -231,6 +257,7 @@ const Canvas: React.FC<CanvasProps> = ({
         </Group>
       </Layer>
     </Stage>
+    </div>
   );
 };
 

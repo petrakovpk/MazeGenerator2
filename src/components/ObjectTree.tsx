@@ -1,6 +1,7 @@
 import React from 'react';
 import { MapObject } from '@/app/page';
-import { UnstyledButton, Group, Text } from '@mantine/core';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface ObjectTreeProps {
   objects: MapObject[];
@@ -31,24 +32,19 @@ const ObjectTree: React.FC<ObjectTreeProps> = ({ objects, onSelectObject, select
   const objectTree = buildTree(objects);
 
   const renderTree = (nodes: MapObject[]) => (
-    <div style={{ paddingLeft: 16 }}>
+    <div className="pl-4">
       {nodes.map(node => (
         <div key={node.id}>
-          <UnstyledButton
+          <Button
+            variant="ghost"
             onClick={() => onSelectObject(node)}
-            style={{
-              display: 'block',
-              width: '100%',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              backgroundColor: selectedObject?.id === node.id ? '#e7f5ff' : 'transparent',
-              color: selectedObject?.id === node.id ? '#1971c2' : '#000',
-            }}
+            className={cn(
+              'w-full justify-start px-2 py-1 h-auto',
+              selectedObject?.id === node.id && 'bg-accent text-accent-foreground'
+            )}
           >
-            <Group>
-              <Text size="sm">{node.name}</Text>
-            </Group>
-          </UnstyledButton>
+            <span className="text-sm">{node.name}</span>
+          </Button>
           {node.children && node.children.length > 0 && renderTree(node.children)}
         </div>
       ))}

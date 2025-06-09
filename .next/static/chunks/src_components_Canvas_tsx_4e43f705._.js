@@ -114,7 +114,35 @@ const Canvas = ({ mapObjects, setMapObjects, selectedObject, setSelectedObject, 
     const [mousePos, setMousePos] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
     const stageRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
     const groupRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
-    const PADDING = 1000;
+    const containerRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
+    const [containerSize, setContainerSize] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])({
+        width: 800,
+        height: 600
+    });
+    const PADDING = 100;
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "Canvas.useEffect": ()=>{
+            const updateSize = {
+                "Canvas.useEffect.updateSize": ()=>{
+                    if (containerRef.current) {
+                        const { clientWidth, clientHeight } = containerRef.current;
+                        setContainerSize({
+                            width: clientWidth,
+                            height: clientHeight
+                        });
+                    }
+                }
+            }["Canvas.useEffect.updateSize"];
+            updateSize();
+            const resizeObserver = new ResizeObserver(updateSize);
+            if (containerRef.current) {
+                resizeObserver.observe(containerRef.current);
+            }
+            return ({
+                "Canvas.useEffect": ()=>resizeObserver.disconnect()
+            })["Canvas.useEffect"];
+        }
+    }["Canvas.useEffect"], []);
     const getRelativePointerPosition = (node)=>{
         if (!node) return null;
         const transform = node.getAbsoluteTransform().copy();
@@ -181,79 +209,92 @@ const Canvas = ({ mapObjects, setMapObjects, selectedObject, setSelectedObject, 
         setMousePos(null);
     };
     const [previewImage] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$use$2d$image$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"])(placingObject?.image || '', 'anonymous');
-    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$konva$2f$es$2f$ReactKonvaCore$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Stage"], {
-        ref: stageRef,
-        width: canvasSize.width + PADDING * 2,
-        height: canvasSize.height + PADDING * 2,
-        onClick: handleStageClick,
-        onMouseMove: handleMouseMove,
-        onMouseLeave: handleMouseLeave,
-        className: "bg-gray-100",
-        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$konva$2f$es$2f$ReactKonvaCore$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Layer"], {
-            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$konva$2f$es$2f$ReactKonvaCore$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Group"], {
-                ref: groupRef,
-                x: PADDING,
-                y: PADDING,
-                children: [
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$konva$2f$es$2f$ReactKonvaCore$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Rect"], {
-                        name: "level-background",
-                        width: canvasSize.width,
-                        height: canvasSize.height,
-                        fill: "white",
-                        shadowBlur: 10,
-                        shadowOpacity: 0.2
-                    }, void 0, false, {
-                        fileName: "[project]/src/components/Canvas.tsx",
-                        lineNumber: 197,
-                        columnNumber: 11
-                    }, this),
-                    mapObjects.map((obj)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(MapObjectComponent, {
-                            shapeProps: obj,
-                            isSelected: selectedObject?.id === obj.id,
-                            onSelect: ()=>{
-                                if (placingObject) return;
-                                if (!obj.isLocked) {
-                                    setSelectedObject(obj);
-                                }
-                            },
-                            onChange: onUpdateObject,
-                            keepAspectRatio: keepAspectRatio
-                        }, obj.id, false, {
+    // Вычисляем позицию для центрирования карты
+    const stageWidth = Math.max(containerSize.width, canvasSize.width + PADDING * 2);
+    const stageHeight = Math.max(containerSize.height, canvasSize.height + PADDING * 2);
+    const offsetX = Math.max(PADDING, (containerSize.width - canvasSize.width) / 2);
+    const offsetY = Math.max(PADDING, (containerSize.height - canvasSize.height) / 2);
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+        ref: containerRef,
+        className: "w-full h-full",
+        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$konva$2f$es$2f$ReactKonvaCore$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Stage"], {
+            ref: stageRef,
+            width: containerSize.width,
+            height: containerSize.height,
+            onClick: handleStageClick,
+            onMouseMove: handleMouseMove,
+            onMouseLeave: handleMouseLeave,
+            className: "bg-gray-100",
+            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$konva$2f$es$2f$ReactKonvaCore$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Layer"], {
+                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$konva$2f$es$2f$ReactKonvaCore$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Group"], {
+                    ref: groupRef,
+                    x: offsetX,
+                    y: offsetY,
+                    children: [
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$konva$2f$es$2f$ReactKonvaCore$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Rect"], {
+                            name: "level-background",
+                            width: canvasSize.width,
+                            height: canvasSize.height,
+                            fill: "white",
+                            shadowBlur: 10,
+                            shadowOpacity: 0.2
+                        }, void 0, false, {
                             fileName: "[project]/src/components/Canvas.tsx",
-                            lineNumber: 206,
+                            lineNumber: 223,
+                            columnNumber: 11
+                        }, this),
+                        mapObjects.map((obj)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(MapObjectComponent, {
+                                shapeProps: obj,
+                                isSelected: selectedObject?.id === obj.id,
+                                onSelect: ()=>{
+                                    if (placingObject) return;
+                                    if (!obj.isLocked) {
+                                        setSelectedObject(obj);
+                                    }
+                                },
+                                onChange: onUpdateObject,
+                                keepAspectRatio: keepAspectRatio
+                            }, obj.id, false, {
+                                fileName: "[project]/src/components/Canvas.tsx",
+                                lineNumber: 232,
+                                columnNumber: 13
+                            }, this)),
+                        mousePos && placingObject && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$konva$2f$es$2f$ReactKonvaCore$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Image"], {
+                            image: previewImage,
+                            x: mousePos.x - placingObject.width / 2,
+                            y: mousePos.y - placingObject.height / 2,
+                            width: placingObject.width,
+                            height: placingObject.height,
+                            opacity: 0.6,
+                            listening: false
+                        }, void 0, false, {
+                            fileName: "[project]/src/components/Canvas.tsx",
+                            lineNumber: 247,
                             columnNumber: 13
-                        }, this)),
-                    mousePos && placingObject && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$konva$2f$es$2f$ReactKonvaCore$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Image"], {
-                        image: previewImage,
-                        x: mousePos.x - placingObject.width / 2,
-                        y: mousePos.y - placingObject.height / 2,
-                        width: placingObject.width,
-                        height: placingObject.height,
-                        opacity: 0.6,
-                        listening: false
-                    }, void 0, false, {
-                        fileName: "[project]/src/components/Canvas.tsx",
-                        lineNumber: 221,
-                        columnNumber: 13
-                    }, this)
-                ]
-            }, void 0, true, {
+                        }, this)
+                    ]
+                }, void 0, true, {
+                    fileName: "[project]/src/components/Canvas.tsx",
+                    lineNumber: 222,
+                    columnNumber: 11
+                }, this)
+            }, void 0, false, {
                 fileName: "[project]/src/components/Canvas.tsx",
-                lineNumber: 196,
+                lineNumber: 221,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/src/components/Canvas.tsx",
-            lineNumber: 195,
+            lineNumber: 212,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/src/components/Canvas.tsx",
-        lineNumber: 186,
+        lineNumber: 211,
         columnNumber: 5
     }, this);
 };
-_s1(Canvas, "iOe+2Xj5e9AIi3iCe7dAi+wCHiI=", false, function() {
+_s1(Canvas, "0slipFgKVrV8CIwtiiuJse3X2cw=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$use$2d$image$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"]
     ];

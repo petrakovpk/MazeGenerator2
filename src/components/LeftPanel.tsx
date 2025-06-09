@@ -3,20 +3,12 @@ import { Levels, PlacingObject } from '@/app/page';
 import { data, objectCategories } from '@/lib/data';
 import Image from 'next/image';
 import { ObjectCategory } from './RightPanel';
-import {
-  Stack,
-  Title,
-  Button,
-  NavLink,
-  UnstyledButton,
-  Group,
-  Text,
-  NumberInput,
-  Box,
-  Divider,
-  Paper,
-  Checkbox,
-} from '@mantine/core';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 const SIZABLE_CATEGORIES: ObjectCategory[] = ['fruits', 'stones', 'water', 'trees', 'finish', 'extra'];
 const SINGULAR_RUSSIAN_MAP: Partial<Record<ObjectCategory, string>> = {
@@ -203,41 +195,49 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
   const renderContent = () => {
     if (content === 'levels') {
       return (
-        <Stack p="md">
-          <Button onClick={onCreateLevel} fullWidth>
+        <div className="p-4 flex flex-col space-y-2">
+          <Button onClick={onCreateLevel} className="w-full">
             Создать новый уровень
           </Button>
-          <Stack gap="xs" mt="sm">
+          <div className="flex flex-col space-y-1 mt-2">
             {Object.keys(levels).map((name) => (
-              <NavLink
+              <Button
                 key={name}
-                href="#"
-                label={name}
-                active={currentLevelName === name}
+                variant={currentLevelName === name ? 'secondary' : 'ghost'}
                 onClick={() => loadLevel(name)}
-                variant="filled"
-              />
+                className="w-full justify-start"
+              >
+                {name}
+              </Button>
             ))}
-          </Stack>
-        </Stack>
+          </div>
+        </div>
       );
     }
     
     if (content === 'settings') {
       return (
-        <Stack p="md">
-          <Title order={4}>Настройки</Title>
-          <NumberInput
-            label="Ширина"
-            value={canvasSize.width}
-            onChange={(value) => handleSizeChange('width', value)}
-          />
-          <NumberInput
-            label="Высота"
-            value={canvasSize.height}
-            onChange={(value) => handleSizeChange('height', value)}
-          />
-        </Stack>
+        <div className="p-4 flex flex-col space-y-4">
+          <h3 className="text-lg font-medium">Настройки</h3>
+          <div className="grid gap-2">
+            <Label htmlFor="canvas-width">Ширина</Label>
+            <Input
+              id="canvas-width"
+              type="number"
+              value={canvasSize.width}
+              onChange={(e) => handleSizeChange('width', e.target.value)}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="canvas-height">Высота</Label>
+            <Input
+              id="canvas-height"
+              type="number"
+              value={canvasSize.height}
+              onChange={(e) => handleSizeChange('height', e.target.value)}
+            />
+          </div>
+        </div>
       );
     }
 
@@ -249,63 +249,53 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
     const randomItemAltText = selectedCategory ? `Случайный ${SINGULAR_RUSSIAN_MAP[selectedCategory] || objectCategories[selectedCategory]}` : '';
 
     return (
-      <Stack p="md" gap="lg" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <Box>
-          <Title order={4} mb="md">Элементы</Title>
-          <Group>
+      <div className="p-4 flex flex-col gap-4 h-full">
+        <div>
+          <h3 className="text-lg font-medium mb-4">Элементы</h3>
+          <div className="flex flex-wrap gap-2">
             {Object.entries(objectCategories).map(([key, name]) => (
               <Button
                 key={key}
-                variant={selectedCategory === key ? 'filled' : 'light'}
+                variant={selectedCategory === key ? 'secondary' : 'outline'}
+                size="sm"
                 onClick={() => setSelectedCategory(key as ObjectCategory)}
-                radius="md"
               >
                 {name}
               </Button>
             ))}
-          </Group>
-        </Box>
+          </div>
+        </div>
 
-        <Box style={{ flex: '1 1 auto', overflowY: 'auto' }}>
+        <div className="flex-grow overflow-y-auto">
           {selectedCategory && categoryData && (
             <>
-              <Divider />
+              <Separator />
               <div>
-                <Title order={4} tt="capitalize" mt="lg" mb="md">
+                <h3 className="text-lg font-medium capitalize mt-6 mb-4">
                   {objectCategories[selectedCategory]}
-                </Title>
-                <Box
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3, 1fr)',
-                    gap: '0.5rem',
-                  }}
-                >
+                </h3>
+                <div className="grid grid-cols-3 gap-2">
                   {categoryData.map((item: any) => (
-                    <UnstyledButton
+                    <button
                       key={item.name}
-                      p="xs"
-                      style={{
-                        borderRadius: 'var(--mantine-radius-md)',
-                        border: placingObject?.name === item.name ? '2px solid var(--mantine-color-blue-6)' : '2px solid transparent',
-                      }}
-                      className="hover:bg-gray-100"
+                      className={cn(
+                        'p-2 rounded-md border-2 hover:bg-accent',
+                        placingObject?.name === item.name ? 'border-primary' : 'border-transparent'
+                      )}
                       onClick={() => handleItemClick(item)}
                     >
-                      <Stack align="center" gap="xs">
+                      <div className="flex flex-col items-center gap-1">
                         <Image src={item.image} alt={item.name} width={56} height={56} />
-                      </Stack>
-                    </UnstyledButton>
+                      </div>
+                    </button>
                   ))}
                   {isSizable && selectedCategory && (
-                    <UnstyledButton
+                    <button
                       key={randomItemName}
-                      p="xs"
-                      style={{
-                        borderRadius: 'var(--mantine-radius-md)',
-                        border: placingObject?.name === randomItemName ? '2px solid var(--mantine-color-blue-6)' : '2px solid transparent',
-                      }}
-                      className="hover:bg-gray-100"
+                      className={cn(
+                        'p-2 rounded-md border-2 hover:bg-accent',
+                        placingObject?.name === randomItemName ? 'border-primary' : 'border-transparent'
+                      )}
                       onClick={() => {
                         if (placingObject?.name === randomItemName) {
                           setPlacingObject(null);
@@ -337,61 +327,71 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
                         }
                       }}
                     >
-                      <Stack align="center" gap="xs">
+                      <div className="flex flex-col items-center gap-1">
                         <Image src={randomItemImage} alt={randomItemAltText} width={56} height={56} />
-                      </Stack>
-                    </UnstyledButton>
+                      </div>
+                    </button>
                   )}
-                </Box>
+                </div>
               </div>
             </>
           )}
-        </Box>
+        </div>
 
         {selectedItemForSizing && (selectedCategory === 'fruits' || selectedCategory === 'stones' || selectedCategory === 'water' || selectedCategory === 'trees' || selectedCategory === 'finish' || selectedCategory === 'extra') && (
-          <Box>
-            <Divider />
-            <Title order={4} tt="capitalize" mt="lg" mb="md">
+          <div>
+            <Separator />
+            <h3 className="text-lg font-medium capitalize mt-6 mb-4">
               Размер для: {selectedItemForSizing}
-            </Title>
-            <Group>
-              <NumberInput
-                label="Ширина"
-                value={itemSize.width}
-                onChange={(value) =>
-                  handleDimensionChange(
-                    'width',
-                    value,
-                    selectedCategory as 'fruits' | 'stones' | 'water' | 'trees' | 'finish' | 'extra'
-                  )
-                }
+            </h3>
+            <div className="flex gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="item-width">Ширина</Label>
+                <Input
+                  id="item-width"
+                  type="number"
+                  value={itemSize.width}
+                  onChange={(e) =>
+                    handleDimensionChange(
+                      'width',
+                      e.target.value,
+                      selectedCategory as 'fruits' | 'stones' | 'water' | 'trees' | 'finish' | 'extra'
+                    )
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="item-height">Высота</Label>
+                <Input
+                  id="item-height"
+                  type="number"
+                  value={itemSize.height}
+                  onChange={(e) =>
+                    handleDimensionChange(
+                      'height',
+                      e.target.value,
+                      selectedCategory as 'fruits' | 'stones' | 'water' | 'trees' | 'finish' | 'extra'
+                    )
+                  }
+                />
+              </div>
+            </div>
+            <div className="flex items-center space-x-2 mt-4">
+              <Checkbox
+                id="keep-aspect-ratio"
+                checked={keepAspectRatio}
+                onCheckedChange={(checked) => setKeepAspectRatio(Boolean(checked))}
               />
-              <NumberInput
-                label="Высота"
-                value={itemSize.height}
-                onChange={(value) =>
-                  handleDimensionChange(
-                    'height',
-                    value,
-                    selectedCategory as 'fruits' | 'stones' | 'water' | 'trees' | 'finish' | 'extra'
-                  )
-                }
-              />
-            </Group>
-            <Checkbox
-              mt="md"
-              checked={keepAspectRatio}
-              onChange={(event) => setKeepAspectRatio(event.currentTarget.checked)}
-              label="Сохранять пропорции"
-            />
-            <Button mt="md" onClick={handleDimensionSave}>Сохранить</Button>
-          </Box>
+              <Label htmlFor="keep-aspect-ratio">Сохранять пропорции</Label>
+            </div>
+            <Button className="mt-4" onClick={handleDimensionSave}>Сохранить</Button>
+          </div>
         )}
-      </Stack>
+      </div>
     );
   };
 
-  return <Box py="sm">{renderContent()}</Box>;
+  return <div className="py-2">{renderContent()}</div>;
 };
 
 export default LeftPanel;

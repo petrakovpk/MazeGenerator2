@@ -47,7 +47,6 @@ export interface Levels {
   }
 }
 
-
 export default function Home() {
   const [levels, setLevels] = useState<Levels>({});
   const [currentLevelName, setCurrentLevelName] = useState('');
@@ -59,11 +58,12 @@ export default function Home() {
   const [keepAspectRatio, setKeepAspectRatio] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
+  const [isRightPanelVisible, setIsRightPanelVisible] = useState(true);
+  const [rightPanelWidth, setRightPanelWidth] = useState(350);
+
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
-  const [islandDimensions, setIslandDimensions] = useState<Record<string, { width: number; height: number }>>({});
-  const [startDimensions, setStartDimensions] = useState<Record<string, { width: number; height: number }>>({});
   const [fruitDimensions, setFruitDimensions] = useState<Record<string, { width: number; height: number }>>({});
   const [stoneDimensions, setStoneDimensions] = useState<Record<string, { width: number; height: number }>>({});
   const [waterDimensions, setWaterDimensions] = useState<Record<string, { width: number; height: number }>>({});
@@ -101,38 +101,18 @@ export default function Home() {
   }, [activeTool]);
 
   useEffect(() => {
-    const savedDimensions = localStorage.getItem('fruit-dimensions');
-    if (savedDimensions) {
-      setFruitDimensions(JSON.parse(savedDimensions));
-    }
+    const savedFruitDimensions = localStorage.getItem('fruit-dimensions');
+    if (savedFruitDimensions) setFruitDimensions(JSON.parse(savedFruitDimensions));
     const savedStoneDimensions = localStorage.getItem('stone-dimensions');
-    if (savedStoneDimensions) {
-      setStoneDimensions(JSON.parse(savedStoneDimensions));
-    }
+    if (savedStoneDimensions) setStoneDimensions(JSON.parse(savedStoneDimensions));
     const savedWaterDimensions = localStorage.getItem('water-dimensions');
-    if (savedWaterDimensions) {
-      setWaterDimensions(JSON.parse(savedWaterDimensions));
-    }
+    if (savedWaterDimensions) setWaterDimensions(JSON.parse(savedWaterDimensions));
     const savedTreeDimensions = localStorage.getItem('tree-dimensions');
-    if (savedTreeDimensions) {
-      setTreeDimensions(JSON.parse(savedTreeDimensions));
-    }
+    if (savedTreeDimensions) setTreeDimensions(JSON.parse(savedTreeDimensions));
     const savedFinishDimensions = localStorage.getItem('finish-dimensions');
-    if (savedFinishDimensions) {
-      setFinishDimensions(JSON.parse(savedFinishDimensions));
-    }
+    if (savedFinishDimensions) setFinishDimensions(JSON.parse(savedFinishDimensions));
     const savedExtraDimensions = localStorage.getItem('extra-dimensions');
-    if (savedExtraDimensions) {
-      setExtraDimensions(JSON.parse(savedExtraDimensions));
-    }
-    const savedIslandDimensions = localStorage.getItem('island-dimensions');
-    if (savedIslandDimensions) {
-      setIslandDimensions(JSON.parse(savedIslandDimensions));
-    }
-    const savedStartDimensions = localStorage.getItem('start-dimensions');
-    if (savedStartDimensions) {
-      setStartDimensions(JSON.parse(savedStartDimensions));
-    }
+    if (savedExtraDimensions) setExtraDimensions(JSON.parse(savedExtraDimensions));
   }, []);
 
   useEffect(() => {
@@ -177,18 +157,6 @@ export default function Home() {
     const newDimensions = { ...extraDimensions, [name]: size };
     setExtraDimensions(newDimensions);
     localStorage.setItem('extra-dimensions', JSON.stringify(newDimensions));
-  };
-
-  const handleSetIslandDimension = (name: string, size: { width: number; height: number }) => {
-    const newDimensions = { ...islandDimensions, [name]: size };
-    setIslandDimensions(newDimensions);
-    localStorage.setItem('island-dimensions', JSON.stringify(newDimensions));
-  };
-
-  const handleSetStartDimension = (name: string, size: { width: number; height: number }) => {
-    const newDimensions = { ...startDimensions, [name]: size };
-    setStartDimensions(newDimensions);
-    localStorage.setItem('start-dimensions', JSON.stringify(newDimensions));
   };
 
   const loadLevel = (name: string, allLevels: Levels) => {
@@ -289,11 +257,50 @@ export default function Home() {
     setSelectedObject(null);
   };
 
+  const handleToggleRightPanel = () => {
+    setIsRightPanelVisible(!isRightPanelVisible);
+  };
+
+  const handleResetRightPanel = () => {
+    setRightPanelWidth(350);
+    setIsRightPanelVisible(true);
+  };
+
+  const handleResizeMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = rightPanelWidth;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = startWidth - (e.clientX - startX);
+      if (newWidth >= 250 && newWidth <= 600) {
+        setRightPanelWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   return (
-    <>
-      <div className="app-container flex flex-col h-screen">
-        <main className="main-content flex flex-grow overflow-hidden">
-          <div className="left-panel w-[250px] bg-white border-r border-gray-300 flex-shrink-0 flex">
+    <div className="flex h-screen bg-gray-200">
+      <div className="flex flex-col flex-grow">
+        <Toolbar 
+          activeTool={activeTool}
+          onToolSelect={handleToolSelect}
+          onSave={handleSaveLevel}
+          isSaving={isSaving}
+          isRightPanelVisible={isRightPanelVisible}
+          onToggleRightPanel={handleToggleRightPanel}
+          onResetRightPanel={handleResetRightPanel}
+        />
+        <div className="flex flex-grow overflow-hidden">
+          <div className="w-[300px] bg-white dark:bg-zinc-950 border-r border-gray-300 dark:border-zinc-800 flex-shrink-0 flex flex-col">
             <LeftPanel
               content={leftPanelContent}
               setContent={setLeftPanelContent}
@@ -305,10 +312,6 @@ export default function Home() {
               setCanvasSize={setCanvasSize}
               placingObject={placingObject}
               setPlacingObject={setPlacingObject}
-              islandDimensions={islandDimensions}
-              onIslandDimensionChange={handleSetIslandDimension}
-              startDimensions={startDimensions}
-              onStartDimensionChange={handleSetStartDimension}
               fruitDimensions={fruitDimensions}
               onFruitDimensionChange={handleSetFruitDimension}
               stoneDimensions={stoneDimensions}
@@ -323,43 +326,46 @@ export default function Home() {
               onExtraDimensionChange={handleSetExtraDimension}
             />
           </div>
-          <div className="center-panel flex-grow flex flex-col min-w-0">
-            <Toolbar
-              activeTool={activeTool}
-              onToolSelect={handleToolSelect}
-              onSave={handleSaveLevel}
-              isSaving={isSaving}
+          <div ref={canvasContainerRef} className="flex-grow flex justify-center items-center bg-gray-100 relative overflow-auto min-w-0">
+            <Canvas
+              mapObjects={mapObjects}
+              setMapObjects={setMapObjects}
+              selectedObject={selectedObject}
+              setSelectedObject={setSelectedObject}
+              canvasSize={canvasSize}
+              placingObject={placingObject}
+              setPlacingObject={setPlacingObject}
+              keepAspectRatio={keepAspectRatio}
+              onUpdateObject={handleUpdateObject}
             />
-            <div className="canvas-container flex-grow overflow-auto bg-gray-100 p-5 flex justify-center items-center">
-              <Canvas
+          </div>
+          
+          {isRightPanelVisible && (
+            <div
+              className="relative bg-white dark:bg-zinc-950 border-l-2 border-gray-300 dark:border-zinc-700 flex-shrink-0 shadow-lg"
+              style={{ width: rightPanelWidth, minWidth: '250px', maxWidth: '600px' }}
+            >
+              <div 
+                className="absolute top-0 bottom-0 -left-1 w-2 bg-blue-500 hover:bg-blue-600 cursor-col-resize z-10 opacity-50 hover:opacity-100 transition-opacity"
+                onMouseDown={handleResizeMouseDown}
+                title="Перетащите для изменения размера панели"
+              />
+              <RightPanel
                 mapObjects={mapObjects}
-                setMapObjects={setMapObjects}
                 selectedObject={selectedObject}
-                setSelectedObject={setSelectedObject}
-                canvasSize={canvasSize}
-                placingObject={placingObject}
-                setPlacingObject={setPlacingObject}
-                keepAspectRatio={keepAspectRatio}
+                onSelectObject={(obj: MapObject) => setSelectedObject(obj)}
                 onUpdateObject={handleUpdateObject}
+                onDeleteObject={handleDeleteObject}
+                leftPanelContent={leftPanelContent}
+                canvasSize={canvasSize}
+                setCanvasSize={setCanvasSize}
+                keepAspectRatio={keepAspectRatio}
+                setKeepAspectRatio={setKeepAspectRatio}
               />
             </div>
-          </div>
-          <div className="right-panel w-[250px] bg-white border-l border-gray-300 p-4 overflow-y-auto flex-shrink-0">
-            <RightPanel
-              mapObjects={mapObjects}
-              selectedObject={selectedObject}
-              onSelectObject={setSelectedObject}
-              onUpdateObject={handleUpdateObject}
-              onDeleteObject={handleDeleteObject}
-              leftPanelContent={leftPanelContent}
-              canvasSize={canvasSize}
-              setCanvasSize={setCanvasSize}
-              keepAspectRatio={keepAspectRatio}
-              setKeepAspectRatio={setKeepAspectRatio}
-            />
-          </div>
-        </main>
+          )}
+        </div>
       </div>
-    </>
+    </div>
   );
 } 
