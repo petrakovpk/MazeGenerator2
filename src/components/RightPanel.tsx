@@ -1,106 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapObject } from '../App';
-import { Trash2, Lock, Unlock } from 'lucide-react';
+import { Trash2, Lock, Unlock, Copy, Group, Ungroup } from 'lucide-react';
 import ObjectTree from './ObjectTree';
 
 export type ObjectCategory = 'islands' | 'start' | 'fruits' | 'stones' | 'water' | 'trees' | 'finish' | 'extra';
 
 interface RightPanelProps {
-  mapObjects: MapObject[];
   selectedObject: MapObject | null;
-  onSelectObject: (object: MapObject) => void;
-  onUpdateObject: (updatedObject: MapObject) => void;
+  selectedObjectIds: string[];
+  onUpdateObject: (updatedAttrs: Partial<MapObject>) => void;
   onDeleteObject: (id: string) => void;
-  leftPanelContent: 'islands' | 'settings' | 'levels' | ObjectCategory | null;
-  canvasSize: { width: number; height: number };
-  setCanvasSize: (size: { width: number; height: number }) => void;
-  keepAspectRatio: boolean;
-  setKeepAspectRatio: (value: boolean) => void;
+  onCloneObject: (id: string) => void;
+  onGroupObjects: () => void;
+  onUngroupObjects: (id: string) => void;
+  allObjects: MapObject[];
+  onMoveObject: (id: string, direction: 'up' | 'down') => void;
+  onSelectObject: (object: MapObject, isMultiSelect: boolean, isShiftSelect: boolean) => void;
+  onReorderObjects: (startIndex: number, endIndex: number) => void;
 }
 
 const RightPanel: React.FC<RightPanelProps> = ({
-  mapObjects,
   selectedObject,
-  onSelectObject,
+  selectedObjectIds,
   onUpdateObject,
   onDeleteObject,
-  leftPanelContent,
-  canvasSize,
-  setCanvasSize,
-  keepAspectRatio,
-  setKeepAspectRatio,
+  onCloneObject,
+  onGroupObjects,
+  onUngroupObjects,
+  allObjects,
+  onMoveObject,
+  onSelectObject,
+  onReorderObjects,
 }) => {
-  const [view, setView] = useState<'properties' | 'tree'>('properties');
+  const [keepAspectRatio, setKeepAspectRatio] = useState(true);
+  const [view, setView] = useState<'properties' | 'tree'>('tree');
+
+  const safeSelectedObjectIds = selectedObjectIds || [];
 
   const handleInputChange = (id: string, value: any) => {
     if (!selectedObject) return;
 
-    let newObject: MapObject = { ...selectedObject, [id]: value };
+    let newAttrs: Partial<MapObject> = { [id]: value };
 
     if (keepAspectRatio) {
-      if (id === 'width' && selectedObject.originalWidth && selectedObject.originalHeight) {
-        const aspectRatio = selectedObject.originalHeight / selectedObject.originalWidth;
-        newObject.height = Number(value) * aspectRatio;
-      } else if (id === 'height' && selectedObject.originalWidth && selectedObject.originalHeight) {
-        const aspectRatio = selectedObject.originalWidth / selectedObject.originalHeight;
-        newObject.width = Number(value) * aspectRatio;
-      } else if (id === 'widthPercent' && selectedObject.originalWidth && selectedObject.originalHeight) {
-        newObject.height = selectedObject.originalHeight * (Number(value) / 100);
-      } else if (id === 'heightPercent' && selectedObject.originalWidth && selectedObject.originalHeight) {
-        newObject.width = selectedObject.originalWidth * (Number(value) / 100);
+      const originalWidth = selectedObject.originalWidth || selectedObject.width;
+      const originalHeight = selectedObject.originalHeight || selectedObject.height;
+
+      if (id === 'width' && originalWidth && originalHeight) {
+        const aspectRatio = originalHeight / originalWidth;
+        newAttrs.height = Number(value) * aspectRatio;
+      } else if (id === 'height' && originalWidth && originalHeight) {
+        const aspectRatio = originalWidth / originalHeight;
+        newAttrs.width = Number(value) * aspectRatio;
       }
     }
-
-    if (id === 'widthPercent' && selectedObject.originalWidth) {
-      newObject.width = selectedObject.originalWidth * (Number(value) / 100);
-    } else if (id === 'heightPercent' && selectedObject.originalHeight) {
-      newObject.height = selectedObject.originalHeight * (Number(value) / 100);
-    }
     
-    onUpdateObject(newObject);
+    onUpdateObject({ ...newAttrs });
   };
 
   const handleCanvasSizeChange = (id: 'width' | 'height', value: number | string) => {
     const newSize = {
-      ...canvasSize,
+      ...selectedObject,
       [id]: Number(value) || 0,
     };
-    setCanvasSize(newSize);
+    onUpdateObject(newSize);
   };
-
-  if (leftPanelContent === 'levels') {
-    return (
-      <div className="p-4">
-        <h2 className="text-lg font-semibold mb-4">Размеры уровня</h2>
-        <div className="space-y-4">
-            <div className="form-control w-full">
-              <label className="label">
-                <span className="label-text">Ширина (пикс.)</span>
-              </label>
-              <input
-                type="number"
-                className="input input-bordered w-full"
-                value={canvasSize.width}
-                onChange={(e) => handleCanvasSizeChange('width', e.target.value)}
-                min={100}
-              />
-            </div>
-            <div className="form-control w-full">
-              <label className="label">
-                <span className="label-text">Высота (пикс.)</span>
-              </label>
-              <input
-                type="number"
-                className="input input-bordered w-full"
-                value={canvasSize.height}
-                onChange={(e) => handleCanvasSizeChange('height', e.target.value)}
-                min={100}
-              />
-            </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-full">
@@ -119,27 +83,63 @@ const RightPanel: React.FC<RightPanelProps> = ({
         </a>
       </div>
       
-      <div className="flex-grow overflow-y-auto p-4">
+      <div className="flex-grow overflow-y-auto flex flex-col">
         {view === 'tree' && (
-            <div>
-              <h2 className="text-lg font-semibold mb-2 flex justify-between items-center">
+            <div className="flex flex-col flex-grow min-h-0 p-4">
+              <h2 className="text-lg font-semibold mb-2 flex justify-between items-center flex-shrink-0">
                 Слои объектов
-                <div className="badge badge-secondary">{mapObjects.length}</div>
+                <div className="badge badge-secondary">{allObjects.length}</div>
               </h2>
-              <ObjectTree objects={mapObjects} onSelectObject={onSelectObject} selectedObject={selectedObject} />
+              <div className="flex items-center gap-2 mb-2">
+                <button 
+                  className="btn btn-sm btn-outline flex-1" 
+                  onClick={onGroupObjects} 
+                  disabled={safeSelectedObjectIds.length < 2}
+                  title="Сгруппировать выбранные объекты"
+                >
+                  <Group className="h-4 w-4" />
+                  <span>Группа</span>
+                </button>
+                <button 
+                  className="btn btn-sm btn-outline flex-1" 
+                  onClick={() => selectedObject && onUngroupObjects(selectedObject.id)}
+                  disabled={!selectedObject || !selectedObject.children}
+                  title="Разгруппировать выбранный объект"
+                >
+                  <Ungroup className="h-4 w-4" />
+                  <span>Разгруппировать</span>
+                </button>
+              </div>
+              <div className="flex-grow overflow-y-auto">
+                <ObjectTree 
+                  objects={allObjects} 
+                  onSelectObject={onSelectObject} 
+                  selectedObject={selectedObject} 
+                  selectedObjectIds={safeSelectedObjectIds}
+                  onMoveObject={onMoveObject} 
+                  onReorderObjects={onReorderObjects}
+                />
+              </div>
             </div>
         )}
         
         {view === 'properties' && (
-          <div>
+          <div className="p-4">
               <h2 className="text-lg font-semibold mb-2 flex justify-between items-center">
                 Свойства объекта
                 {selectedObject && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <button 
+                      className="btn btn-sm btn-ghost btn-circle"
+                      title="Клонировать"
+                      onClick={() => onCloneObject(selectedObject.id)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
                     <button 
                       className="btn btn-sm btn-ghost btn-circle"
                       title={selectedObject.isLocked ? "Разблокировать" : "Заблокировать"}
-                      onClick={() => onUpdateObject({ ...selectedObject, isLocked: !selectedObject.isLocked })}
+                      onClick={() => onUpdateObject({ isLocked: !selectedObject.isLocked })}
                     >
                       {selectedObject.isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
                     </button>
@@ -170,7 +170,7 @@ const RightPanel: React.FC<RightPanelProps> = ({
                       <input
                         className="input input-bordered w-full"
                         value={selectedObject.name}
-                        onChange={(event) => onUpdateObject({ ...selectedObject, name: event.currentTarget.value })}
+                        onChange={(event) => onUpdateObject({ name: event.currentTarget.value })}
                       />
                     </div>
                     <div className="form-control w-full">
@@ -181,7 +181,7 @@ const RightPanel: React.FC<RightPanelProps> = ({
                         className="input input-bordered w-full"
                         type="number"
                         value={Math.round(selectedObject.width)}
-                        onChange={(e) => handleInputChange('width', e.target.value)}
+                        onChange={(e) => handleInputChange('width', Number(e.target.value))}
                         min={1}
                       />
                     </div>
@@ -193,38 +193,10 @@ const RightPanel: React.FC<RightPanelProps> = ({
                         className="input input-bordered w-full"
                         type="number"
                         value={Math.round(selectedObject.height)}
-                        onChange={(e) => handleInputChange('height', e.target.value)}
+                        onChange={(e) => handleInputChange('height', Number(e.target.value))}
                         min={1}
                       />
                     </div>
-                    {selectedObject.originalWidth && (
-                      <div className="form-control w-full">
-                        <label className="label">
-                          <span className="label-text">Ширина (%)</span>
-                        </label>
-                        <input
-                          className="input input-bordered w-full"
-                          type="number"
-                          value={Math.round((selectedObject.width / selectedObject.originalWidth) * 100)}
-                          onChange={(e) => handleInputChange('widthPercent', e.target.value)}
-                          min={1}
-                        />
-                      </div>
-                    )}
-                    {selectedObject.originalHeight && (
-                      <div className="form-control w-full">
-                        <label className="label">
-                          <span className="label-text">Высота (%)</span>
-                        </label>
-                        <input
-                          className="input input-bordered w-full"
-                          type="number"
-                          value={Math.round((selectedObject.height / selectedObject.originalHeight) * 100)}
-                          onChange={(e) => handleInputChange('heightPercent', e.target.value)}
-                          min={1}
-                        />
-                      </div>
-                    )}
                     <div className="form-control">
                       <label className="label cursor-pointer">
                         <span className="label-text">Сохранять пропорции</span>
@@ -261,14 +233,14 @@ const RightPanel: React.FC<RightPanelProps> = ({
 
                     <div className="flex space-x-2">
                         <button
-                            className="btn btn-sm btn-outline w-full"
-                            onClick={() => onUpdateObject({ ...selectedObject, flipX: !selectedObject.flipX })}
+                            className="btn btn-sm btn-outline flex-1"
+                            onClick={() => onUpdateObject({ flipX: !selectedObject.flipX })}
                         >
                             Отразить по X
                         </button>
                         <button
-                            className="btn btn-sm btn-outline w-full"
-                            onClick={() => onUpdateObject({ ...selectedObject, flipY: !selectedObject.flipY })}
+                            className="btn btn-sm btn-outline flex-1"
+                            onClick={() => onUpdateObject({ flipY: !selectedObject.flipY })}
                         >
                             Отразить по Y
                         </button>
@@ -283,3 +255,4 @@ const RightPanel: React.FC<RightPanelProps> = ({
 };
 
 export default RightPanel;
+

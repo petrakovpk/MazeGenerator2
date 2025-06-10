@@ -13,8 +13,10 @@ import {
   Sailboat,
 } from 'lucide-react';
 
-const SIZABLE_CATEGORIES: ObjectCategory[] = ['fruits', 'stones', 'water', 'trees', 'finish', 'extra'];
-const SINGULAR_RUSSIAN_MAP: Partial<Record<ObjectCategory, string>> = {
+const SIZABLE_CATEGORIES: string[] = ['islands', 'start', 'fruits', 'stones', 'water', 'trees', 'finish', 'extra'];
+const SINGULAR_RUSSIAN_MAP: Partial<Record<string, string>> = {
+    islands: 'остров',
+    start: 'старт',
     fruits: 'фрукт',
     stones: 'камень',
     trees: 'дерево',
@@ -42,11 +44,9 @@ const iconMap: Record<string, React.ElementType> = {
   extra: PlusCircle,
 };
 
-export type LeftPanelContent = 'islands' | 'settings' | 'levels' | ObjectCategory | null;
+export type LeftPanelContent = 'islands' | 'settings' | ObjectCategory | null;
 
 interface LeftPanelProps {
-  content: LeftPanelContent;
-  setContent: (content: LeftPanelContent) => void;
   levels: Levels;
   currentLevelName: string;
   loadLevel: (name: string) => void;
@@ -55,6 +55,10 @@ interface LeftPanelProps {
   setCanvasSize: (size: { width: number; height: number }) => void;
   placingObject: PlacingObject | null;
   setPlacingObject: (obj: PlacingObject | null) => void;
+  islandDimensions: Record<string, { width: number; height: number }>;
+  onIslandDimensionChange: (name: string, size: { width: number; height: number }) => void;
+  startDimensions: Record<string, { width: number; height: number }>;
+  onStartDimensionChange: (name: string, size: { width: number; height: number }) => void;
   fruitDimensions: Record<string, { width: number; height: number }>;
   onFruitDimensionChange: (name: string, size: { width: number; height: number }) => void;
   stoneDimensions: Record<string, { width: number; height: number }>;
@@ -64,14 +68,12 @@ interface LeftPanelProps {
   treeDimensions: Record<string, { width: number; height: number }>;
   onTreeDimensionChange: (name: string, size: { width: number; height: number }) => void;
   finishDimensions: Record<string, { width: number; height: number }>;
-  onFinishDimensionChange: (name: string, size: { width: number; height: number }) => void;
+  onFinishDimensionChange: (name:string, size: { width: number; height: number }) => void;
   extraDimensions: Record<string, { width: number; height: number }>;
   onExtraDimensionChange: (name: string, size: { width: number; height: number }) => void;
 }
 
 const LeftPanel: React.FC<LeftPanelProps> = ({
-  content,
-  setContent,
   levels,
   currentLevelName,
   loadLevel,
@@ -80,6 +82,10 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
   setCanvasSize,
   placingObject,
   setPlacingObject,
+  islandDimensions,
+  onIslandDimensionChange,
+  startDimensions,
+  onStartDimensionChange,
   fruitDimensions,
   onFruitDimensionChange,
   stoneDimensions,
@@ -93,6 +99,8 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
   extraDimensions,
   onExtraDimensionChange,
 }) => {
+  const [view, setView] = useState<'editor' | 'levels'>('editor');
+  const [content, setContent] = useState<LeftPanelContent>('islands');
   const [selectedItemForSizing, setSelectedItemForSizing] = useState<string | null>(null);
   const [keepAspectRatio, setKeepAspectRatio] = useState(true);
   const [itemSize, setItemSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
@@ -110,28 +118,31 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
       img.src = item.image;
       img.onload = () => {
         let width, height;
-        const isFruit = content === 'fruits';
-        const isStone = content === 'stones';
-        const isWater = content === 'water';
-        const isTree = content === 'trees';
-        const isFinish = content === 'finish';
-        const isExtra = content === 'extra';
+        const isSizable = content && SIZABLE_CATEGORIES.includes(content);
+
+        let dimensions: Record<string, { width: number; height: number }> | undefined;
+
+        if (content === 'islands') dimensions = islandDimensions;
+        if (content === 'start') dimensions = startDimensions;
+        if (content === 'fruits') dimensions = fruitDimensions;
+        if (content === 'stones') dimensions = stoneDimensions;
+        if (content === 'water') dimensions = waterDimensions;
+        if (content === 'trees') dimensions = treeDimensions;
+        if (content === 'finish') dimensions = finishDimensions;
+        if (content === 'extra') dimensions = extraDimensions;
         
-        let dimensions = fruitDimensions;
-        if (isStone) dimensions = stoneDimensions;
-        if (isWater) dimensions = waterDimensions;
-        if (isTree) dimensions = treeDimensions;
-        if (isFinish) dimensions = finishDimensions;
-        if (isExtra) dimensions = extraDimensions;
+        const savedDim = dimensions?.[item.name];
 
-        const savedDim = dimensions[item.name];
-
-        if ((isFruit || isStone || isWater || isTree || isFinish || isExtra) && savedDim) {
+        if (isSizable && savedDim) {
           width = savedDim.width;
           height = savedDim.height;
-        } else if (isFruit || isStone || isWater || isTree || isFinish || isExtra) {
+        } else if (isSizable) {
           width = 64;
-          height = 64;
+          if (img.naturalWidth > 0) {
+            height = Math.round(width * (img.naturalHeight / img.naturalWidth));
+          } else {
+            height = 64;
+          }
         } else {
           const MAX_DIM = 128;
           const scale = Math.min(1, MAX_DIM / img.naturalWidth, MAX_DIM / img.naturalHeight);
@@ -147,7 +158,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
           originalHeight: img.naturalHeight,
         } as PlacingObject);
 
-        if (isFruit || isStone || isWater || isTree || isFinish || isExtra) {
+        if (isSizable) {
           setSelectedItemForSizing(item.name);
           setItemSize({ width, height });
         } else {
@@ -164,27 +175,23 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
     }
   };
 
-  const handleDimensionChange = (
-    key: 'width' | 'height',
-    value: string | number,
-    category: 'fruits' | 'stones' | 'water' | 'trees' | 'finish' | 'extra'
-  ) => {
+  const handleDimensionChange = (key: 'width' | 'height', value: string | number) => {
     const numValue = Number(value);
-    if (selectedItemForSizing && !isNaN(numValue) && numValue > 0) {
-      if (keepAspectRatio) {
-        const dimensions = { fruitDimensions, stoneDimensions, waterDimensions, treeDimensions, finishDimensions, extraDimensions };
-        const dimKey = `${category}Dimensions` as keyof typeof dimensions;
-        const originalDim = dimensions[dimKey][selectedItemForSizing];
-        const ratio = originalDim ? originalDim.width / originalDim.height : 1;
+    if (!selectedItemForSizing || isNaN(numValue) || numValue <= 0) {
+      return;
+    }
 
+    if (keepAspectRatio) {
+      if (placingObject?.originalWidth && placingObject?.originalHeight) {
+        const ratio = placingObject.originalWidth / placingObject.originalHeight;
         if (key === 'width') {
           setItemSize({ width: numValue, height: Math.round(numValue / ratio) });
         } else {
           setItemSize({ width: Math.round(numValue * ratio), height: numValue });
         }
-      } else {
-        setItemSize((prev) => ({ ...prev, [key]: numValue }));
       }
+    } else {
+      setItemSize((prev) => ({ ...prev, [key]: numValue }));
     }
   };
 
@@ -192,6 +199,12 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
     if (!selectedItemForSizing || !content) return;
 
     switch (content) {
+      case 'islands':
+        onIslandDimensionChange(selectedItemForSizing, itemSize);
+        break;
+      case 'start':
+        onStartDimensionChange(selectedItemForSizing, itemSize);
+        break;
       case 'fruits':
         onFruitDimensionChange(selectedItemForSizing, itemSize);
         break;
@@ -221,198 +234,162 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
     }
   };
 
-  const renderContent = () => {
-    if (content === 'levels') {
-      return (
-        <div className="p-4">
-          <h2 className="text-xl font-bold mb-4">Уровни</h2>
-          <div className="flex flex-col gap-2">
-            {Object.keys(levels).map((name) => (
-              <button
-                key={name}
-                className={`btn ${name === currentLevelName ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => loadLevel(name)}
-              >
-                {name}
-              </button>
-            ))}
-          </div>
-          <button 
-            className="btn btn-outline btn-sm mt-4 w-full" 
-            onClick={onCreateLevel}
+  const renderLevels = () => (
+    <div className="p-4">
+      <h2 className="text-xl font-bold mb-4">Уровни</h2>
+      <div className="flex flex-col gap-2">
+        {Object.keys(levels).map((name) => (
+          <button
+            key={name}
+            className={`btn ${name === currentLevelName ? 'btn-active' : ''}`}
+            onClick={() => loadLevel(name)}
           >
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Создать уровень
+            {name}
           </button>
-        </div>
-      );
-    }
+        ))}
+      </div>
+      <button onClick={onCreateLevel} className="btn btn-primary mt-4 w-full">
+        Создать новый уровень
+      </button>
+    </div>
+  );
 
-    if (content === 'settings') {
-      return (
-        <div className="p-4">
-          <h2 className="text-xl font-bold mb-4">Настройки</h2>
-          <div className="form-control w-full">
-            <label className="label">
-              <span className="label-text">Ширина карты (пикс.)</span>
-            </label>
-            <input
-              className="input input-bordered w-full"
-              type="number"
-              value={canvasSize.width}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSizeChange('width', e.target.value)}
-              min={100}
-              step={50}
-            />
-          </div>
-          <div className="form-control w-full mt-2">
-            <label className="label">
-              <span className="label-text">Высота карты (пикс.)</span>
-            </label>
-            <input
-              className="input input-bordered w-full"
-              type="number"
-              value={canvasSize.height}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSizeChange('height', e.target.value)}
-              min={100}
-              step={50}
-            />
-          </div>
-        </div>
-      );
-    }
+  const renderEditor = () => (
+    <>
+      <div className="tabs tabs-bordered px-4 pt-2">
+        {(Object.entries(objectCategories) as [ObjectCategory, string][]).map(([id, name]) => {
+          const Icon = iconMap[id] || Component;
+          return (
+            <a
+              key={id}
+              className={`tab tab-bordered ${content === id ? 'tab-active' : ''}`}
+              onClick={() => setContent(id)}
+            >
+              <Icon className="h-5 w-5 mr-2" />
+              {name}
+            </a>
+          );
+        })}
+      </div>
 
-    // Категории объектов
-    const categoryEntries = Object.entries(objectCategories) as [ObjectCategory, string][];
-    const categories = categoryEntries.map(([id, name]) => ({
-      id,
-      name,
-      icon: iconMap[id],
-    }));
-
-    return (
-      <div className="flex flex-col h-full">
-        <div className="p-4 bg-base-200/30 border-b border-base-300">
-          <h2 className="text-lg font-semibold mb-2">Категории</h2>
-          <div className="tabs tabs-boxed w-full">
-            {categories.map((category) => (
-              <a
-                key={category.id}
-                className={`tab flex-grow ${content === category.id ? 'tab-active' : ''}`}
-                onClick={() => setContent(category.id)}
+      <div className="flex-grow p-4 overflow-y-auto">
+        {content && content !== 'settings' && data[content as ObjectCategory] && (
+          <div className="grid grid-cols-2 gap-2">
+            {data[content as ObjectCategory].map((item: any) => (
+              <div
+                key={item.name}
+                className={`card card-compact bg-base-200 cursor-pointer transition-all duration-200 ${
+                  placingObject?.name === item.name ? 'ring-2 ring-primary ring-offset-2 ring-offset-base-100' : ''
+                }`}
+                onClick={() => handleItemClick(item)}
               >
-                {category.name}
-              </a>
+                <figure className="px-2 pt-2">
+                  <img src={item.image} alt={item.name} className="rounded-xl h-20 object-contain" />
+                </figure>
+                <div className="card-body items-center text-center p-2">
+                  <h2 className="card-title text-sm">{item.name}</h2>
+                </div>
+              </div>
             ))}
           </div>
-        </div>
+        )}
 
-        <div className="flex-grow overflow-y-auto p-4">
-          <h2 className="text-xl font-bold mb-4">{
-            content === 'islands' ? 'Остров' :
-            content === 'start' ? 'Старт' :
-            content === 'fruits' ? 'Фрукты' :
-            content === 'stones' ? 'Камни' :
-            content === 'water' ? 'Вода' :
-            content === 'trees' ? 'Деревья' :
-            content === 'finish' ? 'Финиш' :
-            'Экстра'
-          }</h2>
-
-          {content && (
-            <div className="grid grid-cols-3 gap-2">
-              {data[content]?.map((item, index) => (
-                <div 
-                  key={`${item.name}-${index}`}
-                  className={`flex flex-col items-center justify-center p-2 rounded-lg cursor-pointer transition-all border-2 ${placingObject?.name === item.name ? 'border-primary bg-primary/10' : 'border-transparent hover:bg-base-200'}`}
-                  onClick={() => handleItemClick(item)}
-                >
-                  <div className="w-16 h-16 flex items-center justify-center">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  </div>
-                  <span className="text-xs mt-1 text-center break-all">{item.name}</span>
-                </div>
-              ))}
+        {content && SIZABLE_CATEGORIES.includes(content) && selectedItemForSizing && (
+          <div className="mt-4 p-4 rounded-lg bg-base-200 space-y-4">
+            <h3 className="font-bold text-center">
+              Размер для <span className='text-primary'>{selectedItemForSizing}</span>
+            </h3>
+            <div className="form-control">
+              <label className="label cursor-pointer">
+                <span className="label-text">Сохранять пропорции</span>
+                <input
+                  type="checkbox"
+                  className="toggle toggle-primary"
+                  checked={keepAspectRatio}
+                  onChange={(e) => setKeepAspectRatio(e.target.checked)}
+                />
+              </label>
             </div>
-          )}
-
-          {selectedItemForSizing && SIZABLE_CATEGORIES.includes(content as ObjectCategory) && (
-            <div className="mt-4 p-4 border-t border-base-300 bg-base-200/30 rounded-lg">
-              <h3 className="text-lg font-semibold mb-3">
-                Размер для{' '}
-                <span className="font-bold text-primary">{
-                  (SINGULAR_RUSSIAN_MAP[content as ObjectCategory] || 'объекта') + ' ' + selectedItemForSizing
-                }</span>
-              </h3>
-              
-              <div className="form-control">
-                <label className="label cursor-pointer">
-                  <span className="label-text">Сохранять пропорции</span> 
-                  <input 
-                    type="checkbox" 
-                    className="toggle toggle-primary" 
-                    checked={keepAspectRatio} 
-                    onChange={(e) => setKeepAspectRatio(e.target.checked)}
-                  />
+            <div className="flex gap-2">
+              <div className="form-control w-full">
+                <label className="label">
+                  <span className="label-text">Ширина</span>
                 </label>
+                <input
+                  type="number"
+                  className="input input-bordered w-full"
+                  value={Math.round(itemSize.width)}
+                  onChange={(e) => handleDimensionChange('width', e.target.value)}
+                />
               </div>
-
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text">Ширина</span>
-                  </label>
-                  <input
-                    type="number"
-                    className="input input-sm input-bordered"
-                    value={Math.round(itemSize.width)}
-                    onChange={(e) => {
-                      if (SIZABLE_CATEGORIES.includes(content as ObjectCategory)) {
-                        handleDimensionChange('width', e.target.value, content as any)
-                      }
-                    }}
-                    min={8}
-                  />
-                </div>
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text">Высота</span>
-                  </label>
-                  <input
-                    type="number"
-                    className="input input-sm input-bordered"
-                    value={Math.round(itemSize.height)}
-                    onChange={(e) => {
-                      if (SIZABLE_CATEGORIES.includes(content as ObjectCategory)) {
-                        handleDimensionChange('height', e.target.value, content as any)
-                      }
-                    }}
-                    min={8}
-                    disabled={keepAspectRatio}
-                  />
-                </div>
+              <div className="form-control w-full">
+                <label className="label">
+                  <span className="label-text">Высота</span>
+                </label>
+                <input
+                  type="number"
+                  className="input input-bordered w-full"
+                  value={Math.round(itemSize.height)}
+                  onChange={(e) => handleDimensionChange('height', e.target.value)}
+                />
               </div>
-              
-              <button
-                className="btn btn-primary btn-sm mt-3 w-full"
-                onClick={handleDimensionSave}
-              >
-                Сохранить размер
-              </button>
             </div>
-          )}
-        </div>
+            <button className="btn btn-primary btn-sm w-full" onClick={handleDimensionSave}>
+              Применить размер для всех "{SINGULAR_RUSSIAN_MAP[content]}"
+            </button>
+          </div>
+        )}
+
+        {content === 'settings' && (
+          <div>
+            <h2 className="text-xl font-bold mb-4">Настройки холста</h2>
+            <div className="form-control w-full">
+              <label className="label">
+                <span className="label-text">Ширина холста (px)</span>
+              </label>
+              <input
+                type="number"
+                className="input input-bordered w-full"
+                value={canvasSize.width}
+                onChange={(e) => handleSizeChange('width', e.target.value)}
+              />
+            </div>
+            <div className="form-control w-full">
+              <label className="label">
+                <span className="label-text">Высота холста (px)</span>
+              </label>
+              <input
+                type="number"
+                className="input input-bordered w-full"
+                value={canvasSize.height}
+                onChange={(e) => handleSizeChange('height', e.target.value)}
+              />
+            </div>
+          </div>
+        )}
       </div>
-    );
-  };
+    </>
+  );
 
   return (
-    <div className="h-full flex flex-col overflow-y-auto">
-      {renderContent()}
+    <div className="flex flex-col h-full">
+      <div className="tabs tabs-boxed flex-shrink-0 m-4">
+        <a 
+          className={`tab flex-grow ${view === 'editor' ? 'tab-active' : ''}`}
+          onClick={() => setView('editor')}
+        >
+          Редактор
+        </a>
+        <a 
+          className={`tab flex-grow ${view === 'levels' ? 'tab-active' : ''}`}
+          onClick={() => setView('levels')}
+        >
+          Уровни
+        </a>
+      </div>
+      <div className="flex-grow flex flex-col overflow-y-auto">
+        {view === 'editor' ? renderEditor() : renderLevels()}
+      </div>
     </div>
   );
 };

@@ -1,9 +1,11 @@
-import { useEffect, useState, useRef, Suspense } from 'react';
+import { useEffect, useState, useRef, Suspense, useCallback } from 'react';
 import LeftPanel from './components/LeftPanel';
 import RightPanel, { ObjectCategory } from './components/RightPanel';
 import { toast } from "sonner"
 import React from 'react';
-import { MousePointer, Layers, Save } from 'lucide-react';
+import { MousePointerClick, Lock, Layers, Save, Infinity } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
 const Canvas = React.lazy(() => import('./components/Canvas'));
 
@@ -47,22 +49,67 @@ export default function App() {
   const [currentLevelName, setCurrentLevelName] = useState('');
   const [mapObjects, setMapObjects] = useState<MapObject[]>([]);
   const [selectedObject, setSelectedObject] = useState<MapObject | null>(null);
+  const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
+  const [lastSelectedObjectId, setLastSelectedObjectId] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<Tool>('pointer');
   const [leftPanelContent, setLeftPanelContent] = useState<ObjectCategory | "levels" | "settings" | "islands" | null>('islands');
   const [placingObject, setPlacingObject] = useState<PlacingObject | null>(null);
   const [keepAspectRatio, setKeepAspectRatio] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [editorMode, setEditorMode] = useState<'edit' | 'levels'>('edit');
+  const [keepObjectAfterPlacement, setKeepObjectAfterPlacement] = useState(false);
   
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
+  const [islandDimensions, setIslandDimensions] = useState<Record<string, { width: number; height: number }>>({});
+  const [startDimensions, setStartDimensions] = useState<Record<string, { width: number; height: number }>>({});
   const [fruitDimensions, setFruitDimensions] = useState<Record<string, { width: number; height: number }>>({});
   const [stoneDimensions, setStoneDimensions] = useState<Record<string, { width: number; height: number }>>({});
   const [waterDimensions, setWaterDimensions] = useState<Record<string, { width: number; height: number }>>({});
   const [treeDimensions, setTreeDimensions] = useState<Record<string, { width: number; height: number }>>({});
   const [finishDimensions, setFinishDimensions] = useState<Record<string, { width: number; height: number }>>({});
   const [extraDimensions, setExtraDimensions] = useState<Record<string, { width: number; height: number }>>({});
+  const [leftPanelSize, setLeftPanelSize] = useState(20);
+  const [rightPanelSize, setRightPanelSize] = useState(20);
+
+  const handleMoveObject = (id: string, direction: 'up' | 'down') => {
+    const index = mapObjects.findIndex(o => o.id === id);
+    if (index === -1) return;
+
+    const newObjects = [...mapObjects];
+    const item = newObjects.splice(index, 1)[0];
+    
+    if (direction === 'up') {
+        if (index > 0) {
+            newObjects.splice(index - 1, 0, item);
+            setMapObjects(newObjects);
+        }
+    } else {
+        if (index < newObjects.length) {
+            newObjects.splice(index + 1, 0, item);
+            setMapObjects(newObjects);
+        }
+    }
+  };
+
+  const handleReorderObjects = (startIndex: number, endIndex: number) => {
+    const result = Array.from(mapObjects);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    setMapObjects(result);
+  };
+
+  const handleSetSelectedObjectIds = (ids: string[]) => {
+    setSelectedObjectIds(ids);
+    if (ids.length === 0) {
+      setSelectedObject(null);
+    } else if (ids.length === 1) {
+      setSelectedObject(mapObjects.find(obj => obj.id === ids[0]) || null);
+    } else {
+      const lastSelected = mapObjects.find(obj => obj.id === ids[ids.length - 1]);
+      setSelectedObject(lastSelected || null);
+    }
+  };
 
   const fetchLevels = async () => {
     const response = await fetch('/api/levels');
@@ -86,14 +133,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (editorMode === 'levels') {
-      setLeftPanelContent('levels');
-    } else {
-      if (leftPanelContent === 'levels') {
-        setLeftPanelContent('islands');
-      }
+    if (leftPanelContent === 'levels') {
+      setLeftPanelContent('islands');
     }
-  }, [editorMode]);
+  }, [leftPanelContent]);
 
   useEffect(() => {
     const savedFruitDimensions = localStorage.getItem('fruit-dimensions');
@@ -108,6 +151,10 @@ export default function App() {
     if (savedFinishDimensions) setFinishDimensions(JSON.parse(savedFinishDimensions));
     const savedExtraDimensions = localStorage.getItem('extra-dimensions');
     if (savedExtraDimensions) setExtraDimensions(JSON.parse(savedExtraDimensions));
+    const savedIslandDimensions = localStorage.getItem('island-dimensions');
+    if (savedIslandDimensions) setIslandDimensions(JSON.parse(savedIslandDimensions));
+    const savedStartDimensions = localStorage.getItem('start-dimensions');
+    if (savedStartDimensions) setStartDimensions(JSON.parse(savedStartDimensions));
   }, []);
 
   useEffect(() => {
@@ -154,6 +201,18 @@ export default function App() {
     localStorage.setItem('extra-dimensions', JSON.stringify(newDimensions));
   };
 
+  const handleSetIslandDimension = (name: string, size: { width: number; height: number }) => {
+    const newDimensions = { ...islandDimensions, [name]: size };
+    setIslandDimensions(newDimensions);
+    localStorage.setItem('island-dimensions', JSON.stringify(newDimensions));
+  };
+
+  const handleSetStartDimension = (name: string, size: { width: number; height: number }) => {
+    const newDimensions = { ...startDimensions, [name]: size };
+    setStartDimensions(newDimensions);
+    localStorage.setItem('start-dimensions', JSON.stringify(newDimensions));
+  };
+
   const loadLevel = (name: string, allLevels: Levels) => {
     const levelData = allLevels[name];
     if (levelData) {
@@ -161,6 +220,7 @@ export default function App() {
       setCanvasSize(levelData.dimensions || { width: 800, height: 600 });
       setCurrentLevelName(name);
       setSelectedObject(null);
+      setSelectedObjectIds([]);
       localStorage.setItem('maze-editor-last-level-name', name);
     }
   };
@@ -198,6 +258,8 @@ export default function App() {
       setPlacingObject(null);
     }
     setActiveTool(tool);
+    setSelectedObject(null);
+    setSelectedObjectIds([]);
   };
 
   const handleSaveLevel = async () => {
@@ -232,124 +294,293 @@ export default function App() {
     setSelectedObject(null);
   };
 
-  const handleUpdateObject = (updatedAttrs: Partial<MapObject>) => {
-    if (!updatedAttrs.id) return;
-    const newMapObjects = mapObjects.map(obj => {
-      if (obj.id === updatedAttrs.id) {
-        return { ...obj, ...updatedAttrs };
-      }
-      return obj;
-    });
-    setMapObjects(newMapObjects);
+  const handleSelectObject = (object: MapObject | null, isMultiSelect: boolean, isShiftSelect: boolean) => {
+    if (object === null) {
+      setSelectedObject(null);
+      setSelectedObjectIds([]);
+      setLastSelectedObjectId(null);
+      return;
+    }
 
-    if (selectedObject && selectedObject.id === updatedAttrs.id) {
-      setSelectedObject(prev => ({ ...prev!, ...updatedAttrs }));
+    const { id } = object;
+
+    if (isShiftSelect && lastSelectedObjectId) {
+      const lastIndex = mapObjects.findIndex(obj => obj.id === lastSelectedObjectId);
+      const currentIndex = mapObjects.findIndex(obj => obj.id === id);
+      
+      if (lastIndex !== -1 && currentIndex !== -1) {
+        const start = Math.min(lastIndex, currentIndex);
+        const end = Math.max(lastIndex, currentIndex);
+        const newSelectedIds = mapObjects.slice(start, end + 1).map(obj => obj.id);
+        
+        const combinedIds = Array.from(new Set([...selectedObjectIds, ...newSelectedIds]));
+        setSelectedObjectIds(combinedIds);
+        setSelectedObject(object);
+        return;
+      }
+    }
+
+    if (isMultiSelect) {
+      const newSelectedIds = selectedObjectIds.includes(id)
+        ? selectedObjectIds.filter(selectedId => selectedId !== id)
+        : [...selectedObjectIds, id];
+      
+      setSelectedObjectIds(newSelectedIds);
+      if (newSelectedIds.length === 1) {
+        setSelectedObject(mapObjects.find(o => o.id === newSelectedIds[0]) || null);
+      } else {
+        setSelectedObject(object);
+      }
+    } else {
+      setSelectedObjectIds([id]);
+      setSelectedObject(object);
+    }
+
+    setLastSelectedObjectId(id);
+  };
+
+  const handleUpdateObject = (updatedAttrs: Partial<MapObject>) => {
+    if (selectedObjectIds.length > 0) {
+        setMapObjects(currentObjects =>
+            currentObjects.map(obj =>
+                selectedObjectIds.includes(obj.id) ? { ...obj, ...updatedAttrs } : obj
+            )
+        );
+        if (selectedObject && selectedObjectIds.length === 1 && selectedObjectIds[0] === selectedObject.id) {
+            setSelectedObject(prev => prev ? { ...prev, ...updatedAttrs } : null);
+        }
     }
   };
 
   const handleDeleteObject = (id: string) => {
-    setMapObjects(mapObjects.filter(obj => obj.id !== id));
+    const idsToDelete = selectedObjectIds.length > 1 ? selectedObjectIds : [id];
+    setMapObjects(currentObjects => currentObjects.filter(obj => !idsToDelete.includes(obj.id)));
     setSelectedObject(null);
+    setSelectedObjectIds([]);
+  };
+
+  const handleAddObject = (obj: Omit<MapObject, 'id'>) => {
+    const newObject = {
+      ...obj,
+      id: `${Date.now()}-${Math.random()}`,
+    };
+    setMapObjects(currentObjects => [...currentObjects, newObject]);
+    setSelectedObject(newObject);
+    setSelectedObjectIds([newObject.id]);
+  };
+
+  const handleCloneObject = (id: string) => {
+    const objectToClone = mapObjects.find(obj => obj.id === id);
+    if (objectToClone) {
+      const newObject = {
+        ...objectToClone,
+        id: `${Date.now()}-${Math.random()}`,
+        x: objectToClone.x + 20,
+        y: objectToClone.y + 20,
+      };
+      setMapObjects(currentObjects => [...currentObjects, newObject]);
+      setSelectedObject(newObject);
+    }
+  };
+
+  const handleGroupObjects = () => {
+    if (selectedObjectIds.length < 2) return;
+
+    const newGroupId = uuidv4();
+    const children = mapObjects.filter(obj => selectedObjectIds.includes(obj.id));
+    
+    if (children.some(c => c.parentId)) {
+        toast.error("Нельзя группировать уже сгруппированные объекты");
+        return;
+    }
+
+    const newGroup: MapObject = {
+        id: newGroupId,
+        name: 'Новая группа',
+        image: 'group-icon.svg', // Placeholder
+        x: Math.min(...children.map(c => c.x)),
+        y: Math.min(...children.map(c => c.y)),
+        width: Math.max(...children.map(c => c.x + c.width)) - Math.min(...children.map(c => c.x)),
+        height: Math.max(...children.map(c => c.y + c.height)) - Math.min(...children.map(c => c.y)),
+        flipX: false,
+        flipY: false,
+        isLocked: false,
+        children: children,
+    };
+
+    const newMapObjects = mapObjects.filter(obj => !selectedObjectIds.includes(obj.id));
+    
+    const updatedChildren = children.map(child => ({ ...child, parentId: newGroupId }));
+
+    setMapObjects([...newMapObjects, newGroup, ...updatedChildren]);
+    setSelectedObjectIds([newGroupId]);
+    setSelectedObject(newGroup);
+  };
+
+  const handleUngroupObjects = (id: string) => {
+    console.log("Ungrouping object:", id);
+    toast.info("Функция разгруппировки в разработке.");
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (selectedObject) {
+        const moveSpeed = e.shiftKey ? 10 : 1;
+
+        switch (e.key) {
+          case 'ArrowUp':
+            e.preventDefault();
+            handleUpdateObject({ id: selectedObject.id, y: selectedObject.y - moveSpeed });
+            break;
+          case 'ArrowDown':
+            e.preventDefault();
+            handleUpdateObject({ id: selectedObject.id, y: selectedObject.y + moveSpeed });
+            break;
+          case 'ArrowLeft':
+            e.preventDefault();
+            handleUpdateObject({ id: selectedObject.id, x: selectedObject.x - moveSpeed });
+            break;
+          case 'ArrowRight':
+            e.preventDefault();
+            handleUpdateObject({ id: selectedObject.id, x: selectedObject.x + moveSpeed });
+            break;
+          case 'Delete':
+          case 'Backspace':
+            e.preventDefault();
+            handleDeleteObject(selectedObject.id);
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedObject, handleUpdateObject, handleDeleteObject]);
+
+  useEffect(() => {
+    const savedLeftPanelSize = localStorage.getItem('left-panel-size');
+    if (savedLeftPanelSize) {
+      setLeftPanelSize(Number(savedLeftPanelSize));
+    }
+    const savedRightPanelSize = localStorage.getItem('right-panel-size');
+    if (savedRightPanelSize) {
+      setRightPanelSize(Number(savedRightPanelSize));
+    }
+  }, []);
+
+  const handleLayout = (sizes: number[]) => {
+    setLeftPanelSize(sizes[0]);
+    localStorage.setItem('left-panel-size', String(sizes[0]));
+    if (sizes.length > 2) {
+      setRightPanelSize(sizes[2]);
+      localStorage.setItem('right-panel-size', String(sizes[2]));
+    }
   };
 
   return (
-    <div className="flex h-screen bg-base-300 text-base-content" data-theme="light">
-      <div className="w-[350px] bg-base-100 border-r border-base-300 flex flex-col">
-        <div className="p-4 border-b border-base-300 flex justify-between items-center">
-            <h1 className="text-xl font-bold">Редактор</h1>
-            <div className="tabs tabs-boxed">
-                <a 
-                    className={`tab ${editorMode === 'edit' ? 'tab-active' : ''}`}
-                    onClick={() => setEditorMode('edit')}
-                >
-                    Редактировать
-                </a>
-                <a 
-                    className={`tab ${editorMode === 'levels' ? 'tab-active' : ''}`}
-                    onClick={() => setEditorMode('levels')}
-                >
-                    Уровни
-                </a>
-            </div>
-        </div>
-        {editorMode === 'edit' && (
-          <div className="p-4 flex gap-2 border-b border-base-300">
-              <button 
-                  className={`btn btn-sm ${activeTool === 'pointer' ? 'btn-primary' : 'btn-ghost'}`}
-                  onClick={() => handleToolSelect('pointer')}
-                  title="Выбрать"
-              >
-                  <MousePointer size={16} />
-              </button>
-          </div>
-        )}
-        <LeftPanel
-          content={leftPanelContent}
-          setContent={setLeftPanelContent}
-          levels={levels}
-          currentLevelName={currentLevelName}
-          loadLevel={(name: string) => loadLevel(name, levels)}
-          onCreateLevel={handleCreateLevel}
-          canvasSize={canvasSize}
-          setCanvasSize={setCanvasSize}
-          placingObject={placingObject}
-          setPlacingObject={setPlacingObject}
-          fruitDimensions={fruitDimensions}
-          onFruitDimensionChange={handleSetFruitDimension}
-          stoneDimensions={stoneDimensions}
-          onStoneDimensionChange={handleSetStoneDimension}
-          waterDimensions={waterDimensions}
-          onWaterDimensionChange={handleSetWaterDimension}
-          treeDimensions={treeDimensions}
-          onTreeDimensionChange={handleSetTreeDimension}
-          finishDimensions={finishDimensions}
-          onFinishDimensionChange={handleSetFinishDimension}
-          extraDimensions={extraDimensions}
-          onExtraDimensionChange={handleSetExtraDimension}
-        />
-      </div>
-      <div className="flex flex-col flex-grow h-full">
-        <div className="flex-grow flex justify-center items-center overflow-auto p-4 h-full">
-            <div ref={canvasContainerRef} className="bg-base-100 shadow-lg rounded-lg">
-                <Suspense fallback={<div className="w-full h-full flex justify-center items-center"><p>Загрузка...</p></div>}>
-                  <Canvas
-                    mapObjects={mapObjects}
-                    setMapObjects={setMapObjects}
-                    selectedObject={selectedObject}
-                    setSelectedObject={setSelectedObject}
-                    canvasSize={canvasSize}
-                    placingObject={placingObject}
-                    setPlacingObject={setPlacingObject}
-                    keepAspectRatio={keepAspectRatio}
-                    onUpdateObject={handleUpdateObject}
-                  />
-                </Suspense>
-            </div>
-        </div>
-      </div>
-      <div
-          className="w-[350px] bg-base-100 border-l border-base-300 flex flex-col"
-        >
-          <div className="p-4 flex justify-between items-center border-b border-base-300">
-              <h2 className="text-lg font-semibold">Свойства</h2>
-              <button className="btn btn-sm btn-primary" onClick={handleSaveLevel} disabled={isSaving}>
-                  <Save size={16} />
-                  {isSaving ? 'Сохранение...' : 'Сохранить'}
-              </button>
-          </div>
-          <RightPanel
-            mapObjects={mapObjects}
-            selectedObject={selectedObject}
-            onSelectObject={(obj: MapObject) => setSelectedObject(obj)}
-            onUpdateObject={handleUpdateObject}
-            onDeleteObject={handleDeleteObject}
-            leftPanelContent={leftPanelContent}
+    <div className="h-screen bg-base-100 text-base-content" data-theme="bumblebee">
+      <PanelGroup direction="horizontal" onLayout={handleLayout}>
+        <Panel defaultSize={leftPanelSize} minSize={15} maxSize={40}>
+          <LeftPanel
+            levels={levels}
+            currentLevelName={currentLevelName}
+            loadLevel={(name) => loadLevel(name, levels)}
+            onCreateLevel={handleCreateLevel}
             canvasSize={canvasSize}
             setCanvasSize={setCanvasSize}
-            keepAspectRatio={keepAspectRatio}
-            setKeepAspectRatio={setKeepAspectRatio}
+            placingObject={placingObject}
+            setPlacingObject={setPlacingObject}
+            islandDimensions={islandDimensions}
+            onIslandDimensionChange={handleSetIslandDimension}
+            startDimensions={startDimensions}
+            onStartDimensionChange={handleSetStartDimension}
+            fruitDimensions={fruitDimensions}
+            onFruitDimensionChange={handleSetFruitDimension}
+            stoneDimensions={stoneDimensions}
+            onStoneDimensionChange={handleSetStoneDimension}
+            waterDimensions={waterDimensions}
+            onWaterDimensionChange={handleSetWaterDimension}
+            treeDimensions={treeDimensions}
+            onTreeDimensionChange={handleSetTreeDimension}
+            finishDimensions={finishDimensions}
+            onFinishDimensionChange={handleSetFinishDimension}
+            extraDimensions={extraDimensions}
+            onExtraDimensionChange={handleSetExtraDimension}
           />
-        </div>
+        </Panel>
+        <PanelResizeHandle className="w-2 bg-base-300 hover:bg-primary transition-colors" />
+        <Panel minSize={30}>
+          <div className="flex flex-col h-full w-full" onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  handleSelectObject(null, false, false);
+                }
+              }}>
+            <div className="flex-shrink-0 bg-base-100 border-b border-base-300 p-2 flex items-center gap-2">
+              <button
+                className={`btn ${activeTool === 'pointer' ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => handleToolSelect('pointer')}
+              >
+                <MousePointerClick />
+              </button>
+              <button
+                className={`btn ${keepObjectAfterPlacement ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => setKeepObjectAfterPlacement(!keepObjectAfterPlacement)}
+              >
+                <Lock />
+              </button>
+              
+              <div className="flex-grow"></div>
+              
+              <button className="btn btn-primary" onClick={handleSaveLevel} disabled={isSaving}>
+                {isSaving ? <span className="loading loading-spinner"></span> : <Save />}
+                Сохранить
+              </button>
+            </div>
+            <div 
+              className="flex-grow w-full h-full flex items-center justify-center overflow-auto bg-base-200"
+            >
+              <Suspense fallback={<div className="flex-grow flex items-center justify-center"><span className="loading loading-spinner loading-lg"></span></div>}>
+                <Canvas
+                  width={canvasSize.width}
+                  height={canvasSize.height}
+                  objects={mapObjects}
+                  selectedObjectIds={selectedObjectIds}
+                  onSelectObject={handleSelectObject}
+                  onSetSelectedObjectIds={handleSetSelectedObjectIds}
+                  placingObject={placingObject}
+                  setPlacingObject={setPlacingObject}
+                  onUpdateObject={handleUpdateObject}
+                  onAddObject={handleAddObject}
+                  activeTool={activeTool}
+                  keepObjectAfterPlacement={keepObjectAfterPlacement}
+                />
+              </Suspense>
+            </div>
+          </div>
+        </Panel>
+        <PanelResizeHandle className="w-2 bg-base-300 hover:bg-primary transition-colors" />
+        <Panel defaultSize={rightPanelSize} minSize={15} maxSize={40}>
+          <RightPanel
+            selectedObject={selectedObject}
+            selectedObjectIds={selectedObjectIds}
+            onUpdateObject={handleUpdateObject}
+            onDeleteObject={handleDeleteObject}
+            onCloneObject={handleCloneObject}
+            onGroupObjects={handleGroupObjects}
+            onUngroupObjects={handleUngroupObjects}
+            allObjects={mapObjects}
+            onMoveObject={handleMoveObject}
+            onSelectObject={handleSelectObject}
+            onReorderObjects={handleReorderObjects}
+          />
+        </Panel>
+      </PanelGroup>
     </div>
   );
 } 

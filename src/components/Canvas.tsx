@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MapObject, PlacingObject } from '../App';
 import { Stage, Layer, Image as KonvaImage, Transformer, Group, Rect } from 'react-konva';
 import useImage from 'use-image';
@@ -9,7 +9,7 @@ import { data } from '../lib/data';
 interface MapObjectComponentProps {
   shapeProps: MapObject;
   isSelected: boolean;
-  onSelect: () => void;
+  onSelect: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   onChange: (newAttrs: Partial<MapObject>) => void;
   keepAspectRatio: boolean;
 }
@@ -20,11 +20,11 @@ const MapObjectComponent: React.FC<MapObjectComponentProps> = ({ shapeProps, isS
   const [image] = useImage(shapeProps.image, 'anonymous');
 
   useEffect(() => {
-    if (isSelected) {
-      trRef.current?.nodes([shapeRef.current!]);
-      trRef.current?.getLayer()?.batchDraw();
+    if (isSelected && trRef.current && shapeRef.current) {
+      trRef.current.nodes([shapeRef.current]);
+      trRef.current.getLayer()?.batchDraw();
     }
-  }, [isSelected]);
+  }, [isSelected, shapeProps]);
 
   const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
     onChange({ ...shapeProps, x: e.target.x(), y: e.target.y() });
@@ -54,6 +54,7 @@ const MapObjectComponent: React.FC<MapObjectComponentProps> = ({ shapeProps, isS
       <KonvaImage
         ref={shapeRef}
         image={image}
+        id={shapeProps.id}
         x={shapeProps.x}
         y={shapeProps.y}
         width={shapeProps.width}
@@ -72,49 +73,70 @@ const MapObjectComponent: React.FC<MapObjectComponentProps> = ({ shapeProps, isS
         <Transformer
           ref={trRef}
           boundBoxFunc={(oldBox, newBox) => {
-            if (keepAspectRatio) {
-              const aspectRatio = oldBox.width / oldBox.height;
-              newBox.width = newBox.height * aspectRatio;
-            }
             if (newBox.width < 5 || newBox.height < 5) {
               return oldBox;
             }
             return newBox;
           }}
+          keepRatio={keepAspectRatio}
         />
       )}
     </>
   );
 };
 
+interface MultiTransformerProps {
+    selectedNodes: Konva.Node[];
+}
+
+const MultiTransformer: React.FC<MultiTransformerProps> = ({ selectedNodes }) => {
+    const trRef = useRef<Konva.Transformer>(null);
+
+    useEffect(() => {
+        if (trRef.current) {
+            trRef.current.nodes(selectedNodes);
+            trRef.current.getLayer()?.batchDraw();
+        }
+    }, [selectedNodes]);
+
+    return <Transformer ref={trRef} />;
+};
+
 interface CanvasProps {
-  mapObjects: MapObject[];
-  setMapObjects: (objects: MapObject[]) => void;
-  selectedObject: MapObject | null;
-  setSelectedObject: (object: MapObject | null) => void;
-  canvasSize: { width: number; height: number };
+  width: number;
+  height: number;
+  objects: MapObject[];
+  selectedObjectIds: string[];
+  onSelectObject: (object: MapObject | null, isMultiSelect: boolean, isShiftSelect: boolean) => void;
+  onSetSelectedObjectIds: (ids: string[]) => void;
   placingObject: PlacingObject | null;
   setPlacingObject: (object: PlacingObject | null) => void;
-  keepAspectRatio: boolean;
   onUpdateObject: (object: Partial<MapObject>) => void;
+  onAddObject: (object: Omit<MapObject, 'id'>) => void;
+  activeTool: string;
+  keepObjectAfterPlacement: boolean;
 }
 
 const Canvas: React.FC<CanvasProps> = ({
-  mapObjects,
-  setMapObjects,
-  selectedObject,
-  setSelectedObject,
-  canvasSize,
+  width,
+  height,
+  objects,
+  selectedObjectIds,
+  onSelectObject,
+  onSetSelectedObjectIds,
   placingObject,
   setPlacingObject,
-  keepAspectRatio,
   onUpdateObject,
+  onAddObject,
+  activeTool,
+  keepObjectAfterPlacement,
 }) => {
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const groupRef = useRef<Konva.Group>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
+  const [selectionRect, setSelectionRect] = useState({ x1: 0, y1: 0, x2: 0, y2: 0, visible: false });
   const PADDING = 100;
 
   useEffect(() => {
@@ -143,46 +165,88 @@ const Canvas: React.FC<CanvasProps> = ({
     return transform.point(pos);
   };
   
+  const updateSelection = useCallback((rect: {x: number, y: number, width: number, height: number}, isMulti: boolean) => {
+    const stage = stageRef.current;
+    const group = groupRef.current;
+    if (!stage || !group) return;
+
+    let newSelectedIds = new Set(isMulti ? selectedObjectIds : []);
+    
+    stage.find('Image').forEach((imageNode) => {
+      const imageObject = objects.find(o => o.id === imageNode.id());
+      if (imageObject && imageObject.isLocked) {
+        return;
+      }
+
+      const imageRect = imageNode.getClientRect({ relativeTo: group });
+      const isContained =
+        imageRect.x >= rect.x &&
+        imageRect.y >= rect.y &&
+        imageRect.x + imageRect.width <= rect.x + rect.width &&
+        imageRect.y + imageRect.height <= rect.y + rect.height;
+        
+      if (isContained) {
+        const id = imageNode.id();
+        if (id) {
+          if (isMulti && newSelectedIds.has(id)) {
+            newSelectedIds.delete(id);
+          } else {
+            newSelectedIds.add(id);
+          }
+        }
+      }
+    });
+
+    onSetSelectedObjectIds(Array.from(newSelectedIds));
+
+  }, [onSetSelectedObjectIds, selectedObjectIds, objects]);
+
+  const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (activeTool !== 'pointer') return;
+    if (e.target !== stageRef.current) return;
+
+    const pos = getRelativePointerPosition(groupRef.current);
+    if (!pos) return;
+    
+    setSelectionRect({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y, visible: true });
+  };
+  
   const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (placingObject && groupRef.current) {
+    if (selectionRect.visible) return;
+
+    if (activeTool === 'placing' && placingObject && groupRef.current) {
       const pos = getRelativePointerPosition(groupRef.current);
       if (!pos) return;
       
-      if (placingObject.name === 'random_fruit') {
-        const newObject: MapObject = {
-          id: uuidv4(),
-          name: 'Случайный фрукт',
-          image: placingObject.image,
-          x: pos.x - placingObject.width / 2,
-          y: pos.y - placingObject.height / 2,
-          width: placingObject.width,
-          height: placingObject.height,
-          originalWidth: placingObject.originalWidth,
-          originalHeight: placingObject.originalHeight,
-          flipX: false,
-          flipY: false,
-          isLocked: false,
-        };
-        setMapObjects([...mapObjects, newObject]);
-        setPlacingObject(null);
-      } else {
-        const newObject: MapObject = {
-          id: uuidv4(),
-          ...placingObject,
-          x: pos.x - placingObject.width / 2,
-          y: pos.y - placingObject.height / 2,
-          flipX: false,
-          flipY: false,
-          isLocked: false,
-        };
-        setMapObjects([...mapObjects, newObject]);
+      const newObject = {
+        name: placingObject.name,
+        image: placingObject.image,
+        x: pos.x - placingObject.width / 2,
+        y: pos.y - placingObject.height / 2,
+        width: placingObject.width,
+        height: placingObject.height,
+        originalWidth: placingObject.originalWidth,
+        originalHeight: placingObject.originalHeight,
+        flipX: false,
+        flipY: false,
+        isLocked: false,
+      };
+      
+      onAddObject(newObject);
+
+      if (!keepObjectAfterPlacement) {
         setPlacingObject(null);
       }
       return;
     }
 
-    if (e.target === e.target.getStage() || e.target.name() === 'level-background') {
-      setSelectedObject(null);
+    const target = e.target;
+    if (
+      target === target.getStage() ||
+      target instanceof Konva.Layer ||
+      target.name() === 'level-background'
+    ) {
+      onSelectObject(null, false, false);
     }
   };
   
@@ -192,20 +256,45 @@ const Canvas: React.FC<CanvasProps> = ({
       if (pos) {
         setMousePos(pos);
       }
+      return;
     }
+
+    if (!selectionRect.visible) return;
+
+    const pos = getRelativePointerPosition(groupRef.current);
+    if (!pos) return;
+    setSelectionRect(prev => ({ ...prev, x2: pos.x, y2: pos.y }));
   };
   
+  const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (!selectionRect.visible) return;
+
+    const { x1, y1, x2, y2 } = selectionRect;
+    const selectionBox = {
+      x: Math.min(x1, x2),
+      y: Math.min(y1, y2),
+      width: Math.abs(x1 - x2),
+      height: Math.abs(y1 - y2),
+    };
+
+    if (selectionBox.width > 5 || selectionBox.height > 5) {
+      const isMulti = e.evt.ctrlKey || e.evt.metaKey || e.evt.shiftKey;
+      updateSelection(selectionBox, isMulti);
+    }
+    
+    setSelectionRect({ x1: 0, y1: 0, x2: 0, y2: 0, visible: false });
+  };
+
   const handleMouseLeave = () => {
     setMousePos(null);
   };
   
   const [previewImage] = useImage(placingObject?.image || '', 'anonymous');
 
-  // Вычисляем позицию для центрирования карты
-  const stageWidth = Math.max(containerSize.width, canvasSize.width + PADDING * 2);
-  const stageHeight = Math.max(containerSize.height, canvasSize.height + PADDING * 2);
-  const offsetX = Math.max(PADDING, (containerSize.width - canvasSize.width) / 2);
-  const offsetY = Math.max(PADDING, (containerSize.height - canvasSize.height) / 2);
+  const stageWidth = Math.max(containerSize.width, width + PADDING * 2);
+  const stageHeight = Math.max(containerSize.height, height + PADDING * 2);
+  const offsetX = Math.max(PADDING, (containerSize.width - width) / 2);
+  const offsetY = Math.max(PADDING, (containerSize.height - height) / 2);
 
   return (
     <div ref={containerRef} className="w-full h-full">
@@ -214,7 +303,9 @@ const Canvas: React.FC<CanvasProps> = ({
         width={containerSize.width}
         height={containerSize.height}
         onClick={handleStageClick}
+        onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
         className="bg-gray-100"
       >
@@ -222,25 +313,27 @@ const Canvas: React.FC<CanvasProps> = ({
           <Group ref={groupRef} x={offsetX} y={offsetY}>
           <Rect
             name="level-background"
-            width={canvasSize.width}
-            height={canvasSize.height}
+            width={width}
+            height={height}
             fill="white"
             shadowBlur={10}
             shadowOpacity={0.2}
           />
-          {mapObjects.map((obj) => (
+          {objects.map((obj) => (
             <MapObjectComponent
               key={obj.id}
               shapeProps={obj}
-              isSelected={selectedObject?.id === obj.id}
-              onSelect={() => {
+              isSelected={selectedObjectIds.includes(obj.id)}
+              onSelect={(e) => {
                 if (placingObject) return;
                 if (!obj.isLocked) {
-                  setSelectedObject(obj);
+                  const isMulti = e.evt.ctrlKey || e.evt.metaKey;
+                  const isShift = e.evt.shiftKey;
+                  onSelectObject(obj, isMulti, isShift);
                 }
               }}
-              onChange={onUpdateObject}
-              keepAspectRatio={keepAspectRatio}
+              onChange={(newAttrs) => onUpdateObject({ ...newAttrs, id: obj.id })}
+              keepAspectRatio={true}
             />
           ))}
           {mousePos && placingObject && (
@@ -251,6 +344,18 @@ const Canvas: React.FC<CanvasProps> = ({
               width={placingObject.width}
               height={placingObject.height}
               opacity={0.6}
+              listening={false}
+            />
+          )}
+          {selectionRect.visible && (
+            <Rect
+              x={Math.min(selectionRect.x1, selectionRect.x2)}
+              y={Math.min(selectionRect.y1, selectionRect.y2)}
+              width={Math.abs(selectionRect.x1 - selectionRect.x2)}
+              height={Math.abs(selectionRect.y1 - selectionRect.y2)}
+              fill="rgba(0, 162, 255, 0.3)"
+              stroke="rgba(0, 162, 255, 0.7)"
+              strokeWidth={1}
               listening={false}
             />
           )}

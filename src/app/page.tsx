@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import Toolbar from '@/components/Toolbar';
-import LeftPanel from '@/components/LeftPanel';
-import RightPanel, { ObjectCategory } from '@/components/RightPanel';
+import Toolbar from '../components/Toolbar';
+import LeftPanel from '../components/LeftPanel';
+import RightPanel, { ObjectCategory } from '../components/RightPanel';
 import dynamic from 'next/dynamic';
 import { toast } from "sonner"
 
-const Canvas = dynamic(() => import('@/components/Canvas'), {
+const Canvas = dynamic(() => import('../components/Canvas'), {
   ssr: false,
   loading: () => <div className="flex-grow flex justify-center items-center bg-gray-100"><p>Loading Canvas...</p></div>
 });
@@ -52,11 +52,13 @@ export default function Home() {
   const [currentLevelName, setCurrentLevelName] = useState('');
   const [mapObjects, setMapObjects] = useState<MapObject[]>([]);
   const [selectedObject, setSelectedObject] = useState<MapObject | null>(null);
+  const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [activeTool, setActiveTool] = useState<Tool>('pointer');
   const [leftPanelContent, setLeftPanelContent] = useState<ObjectCategory | "levels" | "settings" | "islands" | null>('islands');
   const [placingObject, setPlacingObject] = useState<PlacingObject | null>(null);
   const [keepAspectRatio, setKeepAspectRatio] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [keepObjectAfterPlacement, setKeepObjectAfterPlacement] = useState(false);
   
   const [isRightPanelVisible, setIsRightPanelVisible] = useState(true);
   const [rightPanelWidth, setRightPanelWidth] = useState(350);
@@ -64,6 +66,8 @@ export default function Home() {
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
+  const [islandDimensions, setIslandDimensions] = useState<Record<string, { width: number; height: number }>>({});
+  const [startDimensions, setStartDimensions] = useState<Record<string, { width: number; height: number }>>({});
   const [fruitDimensions, setFruitDimensions] = useState<Record<string, { width: number; height: number }>>({});
   const [stoneDimensions, setStoneDimensions] = useState<Record<string, { width: number; height: number }>>({});
   const [waterDimensions, setWaterDimensions] = useState<Record<string, { width: number; height: number }>>({});
@@ -101,6 +105,10 @@ export default function Home() {
   }, [activeTool]);
 
   useEffect(() => {
+    const savedIslandDimensions = localStorage.getItem('island-dimensions');
+    if (savedIslandDimensions) setIslandDimensions(JSON.parse(savedIslandDimensions));
+    const savedStartDimensions = localStorage.getItem('start-dimensions');
+    if (savedStartDimensions) setStartDimensions(JSON.parse(savedStartDimensions));
     const savedFruitDimensions = localStorage.getItem('fruit-dimensions');
     if (savedFruitDimensions) setFruitDimensions(JSON.parse(savedFruitDimensions));
     const savedStoneDimensions = localStorage.getItem('stone-dimensions');
@@ -122,6 +130,18 @@ export default function Home() {
       setActiveTool('pointer');
     }
   }, [placingObject]);
+
+  const handleSetIslandDimension = (name: string, size: { width: number; height: number }) => {
+    const newDimensions = { ...islandDimensions, [name]: size };
+    setIslandDimensions(newDimensions);
+    localStorage.setItem('island-dimensions', JSON.stringify(newDimensions));
+  };
+
+  const handleSetStartDimension = (name: string, size: { width: number; height: number }) => {
+    const newDimensions = { ...startDimensions, [name]: size };
+    setStartDimensions(newDimensions);
+    localStorage.setItem('start-dimensions', JSON.stringify(newDimensions));
+  };
 
   const handleSetFruitDimension = (name: string, size: { width: number; height: number }) => {
     const newDimensions = { ...fruitDimensions, [name]: size };
@@ -238,23 +258,185 @@ export default function Home() {
   };
 
   const handleUpdateObject = (updatedAttrs: Partial<MapObject>) => {
-    if (!updatedAttrs.id) return;
+    if (!selectedObject) return;
+
+    let newAttrs: Partial<MapObject> = { ...updatedAttrs };
+
+    const originalWidth = selectedObject.originalWidth || selectedObject.width;
+    const originalHeight = selectedObject.originalHeight || selectedObject.height;
+
+    if (keepAspectRatio && originalWidth && originalHeight) {
+      if (updatedAttrs.width !== undefined && updatedAttrs.width !== selectedObject.width) {
+        const aspectRatio = originalHeight / originalWidth;
+        newAttrs.height = Number(updatedAttrs.width) * aspectRatio;
+      } else if (updatedAttrs.height !== undefined && updatedAttrs.height !== selectedObject.height) {
+        const aspectRatio = originalWidth / originalHeight;
+        newAttrs.width = Number(updatedAttrs.height) * aspectRatio;
+      }
+    }
+    
+    const idToUpdate = selectedObject.id;
+
     const newMapObjects = mapObjects.map(obj => {
-      if (obj.id === updatedAttrs.id) {
-        return { ...obj, ...updatedAttrs };
+      if (obj.id === idToUpdate) {
+        return { ...obj, ...newAttrs };
       }
       return obj;
     });
     setMapObjects(newMapObjects);
 
-    if (selectedObject && selectedObject.id === updatedAttrs.id) {
-      setSelectedObject(prev => ({ ...prev!, ...updatedAttrs }));
+    if (selectedObject && selectedObject.id === idToUpdate) {
+      setSelectedObject(prev => ({ ...prev!, ...newAttrs }));
     }
   };
 
-  const handleDeleteObject = (id: string) => {
-    setMapObjects(mapObjects.filter(obj => obj.id !== id));
+  const handleSelectObject = (object: MapObject | null, isMultiSelect: boolean = false) => {
+    if (object === null) {
+      setSelectedObject(null);
+      setSelectedObjectIds([]);
+      return;
+    }
+
+    const newSelectedIds = isMultiSelect 
+      ? selectedObjectIds.includes(object.id)
+        ? selectedObjectIds.filter(id => id !== object.id)
+        : [...selectedObjectIds, object.id]
+      : [object.id];
+
+    setSelectedObjectIds(newSelectedIds);
+
+    if (newSelectedIds.length === 1) {
+      const fullObject = mapObjects.find(obj => obj.id === newSelectedIds[0]) || null;
+      setSelectedObject(fullObject);
+    } else {
+      setSelectedObject(null);
+    }
+  };
+
+  const handleCloneObject = (id: string) => {
+    const objectToClone = mapObjects.find(obj => obj.id === id);
+    if (!objectToClone) return;
+
+    const newObject: MapObject = {
+      ...objectToClone,
+      id: crypto.randomUUID(),
+      x: objectToClone.x + 10,
+      y: objectToClone.y + 10,
+      name: `${objectToClone.name} (копия)`,
+    };
+
+    const index = mapObjects.findIndex(obj => obj.id === id);
+    const newMapObjects = [...mapObjects];
+    newMapObjects.splice(index + 1, 0, newObject);
+
+    setMapObjects(newMapObjects);
+    handleSelectObject(newObject, false);
+  };
+
+  const handleGroupObjects = () => {
+    if (selectedObjectIds.length < 2) return;
+
+    const newGroupId = crypto.randomUUID();
+    let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
+
+    selectedObjectIds.forEach(id => {
+        const obj = mapObjects.find(o => o.id === id);
+        if (obj) {
+            minX = Math.min(minX, obj.x);
+            minY = Math.min(minY, obj.y);
+            maxX = Math.max(maxX, obj.x + obj.width);
+            maxY = Math.max(maxY, obj.y + obj.height);
+        }
+    });
+
+    const newGroup: MapObject = {
+        id: newGroupId,
+        name: 'Группа',
+        image: '/icons/group.svg',
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
+        isLocked: false,
+        flipX: false,
+        flipY: false,
+        children: [],
+        parentId: undefined,
+    };
+
+    const updatedMapObjects = mapObjects.map(obj => {
+        if (selectedObjectIds.includes(obj.id)) {
+            return { ...obj, parentId: newGroupId };
+        }
+        return obj;
+    });
+
+    setMapObjects([...updatedMapObjects, newGroup]);
+    setSelectedObjectIds([newGroupId]);
+    setSelectedObject(newGroup);
+  };
+
+  const handleUngroupObjects = (groupId: string) => {
+    const group = mapObjects.find(obj => obj.id === groupId);
+    if (!group) return;
+
+    const newMapObjects = mapObjects
+        .map(obj => {
+            if (obj.parentId === groupId) {
+                return { ...obj, parentId: undefined };
+            }
+            return obj;
+        })
+        .filter(obj => obj.id !== groupId);
+    
+    const childrenIds = mapObjects.filter(obj => obj.parentId === groupId).map(obj => obj.id);
+
+    setMapObjects(newMapObjects);
+    setSelectedObjectIds(childrenIds);
     setSelectedObject(null);
+  };
+
+  const handleMoveObject = (id: string, direction: 'up' | 'down') => {
+    const index = mapObjects.findIndex(obj => obj.id === id);
+    if (index === -1) return;
+
+    const newMapObjects = [...mapObjects];
+    const item = newMapObjects.splice(index, 1)[0];
+
+    let newIndex = index;
+    if (direction === 'up' && index > 0) {
+      newIndex = index - 1;
+    } else if (direction === 'down' && index < mapObjects.length - 1) {
+      newIndex = index + 1;
+    }
+
+    newMapObjects.splice(newIndex, 0, item);
+    setMapObjects(newMapObjects);
+  };
+
+  const handleDeleteObject = (id: string) => {
+    // Also delete children if it's a group
+    const objectToDelete = mapObjects.find(obj => obj.id === id);
+    if (!objectToDelete) return;
+
+    let idsToDelete = [id];
+    if (objectToDelete.children && objectToDelete.children.length > 0) {
+      const childIds = mapObjects.filter(obj => obj.parentId === id).map(o => o.id);
+      idsToDelete = [...idsToDelete, ...childIds];
+    }
+    
+    // If it's a child, remove from parent's children array
+    if(objectToDelete.parentId){
+       const parent = mapObjects.find(obj => obj.id === objectToDelete.parentId);
+       if(parent && parent.children){
+           parent.children = parent.children.filter(child => child.id !== id);
+       }
+    }
+
+
+    setMapObjects(mapObjects.filter(obj => !idsToDelete.includes(obj.id)));
+    setSelectedObject(null);
+    setSelectedObjectIds([]);
   };
 
   const handleToggleRightPanel = () => {
@@ -287,6 +469,17 @@ export default function Home() {
     document.addEventListener('mouseup', handleMouseUp);
   };
 
+  const handleAddObject = (newObjectData: Omit<MapObject, 'id'>) => {
+    const newObject: MapObject = {
+      ...newObjectData,
+      id: crypto.randomUUID(),
+    };
+    setMapObjects(prev => [...prev, newObject]);
+    if (!keepObjectAfterPlacement) {
+      setPlacingObject(null);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-200">
       <div className="flex flex-col flex-grow">
@@ -312,6 +505,12 @@ export default function Home() {
               setCanvasSize={setCanvasSize}
               placingObject={placingObject}
               setPlacingObject={setPlacingObject}
+              keepObjectAfterPlacement={keepObjectAfterPlacement}
+              onKeepObjectAfterPlacementChange={setKeepObjectAfterPlacement}
+              islandDimensions={islandDimensions}
+              onIslandDimensionChange={handleSetIslandDimension}
+              startDimensions={startDimensions}
+              onStartDimensionChange={handleSetStartDimension}
               fruitDimensions={fruitDimensions}
               onFruitDimensionChange={handleSetFruitDimension}
               stoneDimensions={stoneDimensions}
@@ -328,15 +527,17 @@ export default function Home() {
           </div>
           <div ref={canvasContainerRef} className="flex-grow flex justify-center items-center bg-gray-100 relative overflow-auto min-w-0">
             <Canvas
-              mapObjects={mapObjects}
-              setMapObjects={setMapObjects}
+              objects={mapObjects}
+              onAddObject={handleAddObject}
               selectedObject={selectedObject}
-              setSelectedObject={setSelectedObject}
-              canvasSize={canvasSize}
+              onSelectObject={handleSelectObject}
+              width={canvasSize.width}
+              height={canvasSize.height}
               placingObject={placingObject}
               setPlacingObject={setPlacingObject}
-              keepAspectRatio={keepAspectRatio}
               onUpdateObject={handleUpdateObject}
+              activeTool={activeTool}
+              keepObjectAfterPlacement={keepObjectAfterPlacement}
             />
           </div>
           
@@ -351,16 +552,16 @@ export default function Home() {
                 title="Перетащите для изменения размера панели"
               />
               <RightPanel
-                mapObjects={mapObjects}
+                allObjects={mapObjects}
                 selectedObject={selectedObject}
-                onSelectObject={(obj: MapObject) => setSelectedObject(obj)}
+                selectedObjectIds={selectedObjectIds}
+                onSelectObject={handleSelectObject}
                 onUpdateObject={handleUpdateObject}
                 onDeleteObject={handleDeleteObject}
-                leftPanelContent={leftPanelContent}
-                canvasSize={canvasSize}
-                setCanvasSize={setCanvasSize}
-                keepAspectRatio={keepAspectRatio}
-                setKeepAspectRatio={setKeepAspectRatio}
+                onCloneObject={handleCloneObject}
+                onGroupObjects={handleGroupObjects}
+                onUngroupObjects={handleUngroupObjects}
+                onMoveObject={handleMoveObject}
               />
             </div>
           )}
