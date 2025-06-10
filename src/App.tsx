@@ -1,9 +1,9 @@
 import { useEffect, useState, useRef, Suspense } from 'react';
-import Toolbar from './components/Toolbar';
 import LeftPanel from './components/LeftPanel';
 import RightPanel, { ObjectCategory } from './components/RightPanel';
 import { toast } from "sonner"
 import React from 'react';
+import { MousePointer, Layers, Save } from 'lucide-react';
 
 const Canvas = React.lazy(() => import('./components/Canvas'));
 
@@ -52,10 +52,8 @@ export default function App() {
   const [placingObject, setPlacingObject] = useState<PlacingObject | null>(null);
   const [keepAspectRatio, setKeepAspectRatio] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [editorMode, setEditorMode] = useState<'edit' | 'levels'>('edit');
   
-  const [isRightPanelVisible, setIsRightPanelVisible] = useState(true);
-  const [rightPanelWidth, setRightPanelWidth] = useState(350);
-
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
@@ -88,12 +86,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (activeTool === 'map') {
+    if (editorMode === 'levels') {
       setLeftPanelContent('levels');
-    } else if (activeTool === 'pointer' && leftPanelContent === 'levels') {
-      setLeftPanelContent('islands');
+    } else {
+      if (leftPanelContent === 'levels') {
+        setLeftPanelContent('islands');
+      }
     }
-  }, [activeTool]);
+  }, [editorMode]);
 
   useEffect(() => {
     const savedFruitDimensions = localStorage.getItem('fruit-dimensions');
@@ -252,39 +252,37 @@ export default function App() {
     setSelectedObject(null);
   };
 
-  const handleToggleRightPanel = () => {
-    setIsRightPanelVisible(!isRightPanelVisible);
-  };
-
-  const handleResetRightPanel = () => {
-    setRightPanelWidth(350);
-    setIsRightPanelVisible(true);
-  };
-
-  const handleResizeMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = rightPanelWidth;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const newWidth = startWidth - (e.clientX - startX);
-      if (newWidth >= 250 && newWidth <= 600) {
-        setRightPanelWidth(newWidth);
-      }
-    };
-
-    const handleMouseUp = () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  };
-
   return (
-    <div className="flex h-screen bg-gray-200">
-      <div className="flex-shrink-0 w-[300px] bg-white dark:bg-zinc-950 border-r border-gray-300 dark:border-zinc-800 flex flex-col">
+    <div className="flex h-screen bg-base-300 text-base-content" data-theme="light">
+      <div className="w-[350px] bg-base-100 border-r border-base-300 flex flex-col">
+        <div className="p-4 border-b border-base-300 flex justify-between items-center">
+            <h1 className="text-xl font-bold">Редактор</h1>
+            <div className="tabs tabs-boxed">
+                <a 
+                    className={`tab ${editorMode === 'edit' ? 'tab-active' : ''}`}
+                    onClick={() => setEditorMode('edit')}
+                >
+                    Редактировать
+                </a>
+                <a 
+                    className={`tab ${editorMode === 'levels' ? 'tab-active' : ''}`}
+                    onClick={() => setEditorMode('levels')}
+                >
+                    Уровни
+                </a>
+            </div>
+        </div>
+        {editorMode === 'edit' && (
+          <div className="p-4 flex gap-2 border-b border-base-300">
+              <button 
+                  className={`btn btn-sm ${activeTool === 'pointer' ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => handleToolSelect('pointer')}
+                  title="Выбрать"
+              >
+                  <MousePointer size={16} />
+              </button>
+          </div>
+        )}
         <LeftPanel
           content={leftPanelContent}
           setContent={setLeftPanelContent}
@@ -310,44 +308,35 @@ export default function App() {
           onExtraDimensionChange={handleSetExtraDimension}
         />
       </div>
-      <div className="flex flex-col flex-grow">
-        <Toolbar
-          activeTool={activeTool}
-          onToolSelect={handleToolSelect}
-          onSave={handleSaveLevel}
-          isSaving={isSaving}
-          isRightPanelVisible={isRightPanelVisible}
-          onToggleRightPanel={handleToggleRightPanel}
-          onResetRightPanel={handleResetRightPanel}
-        />
-        <div className="flex flex-grow overflow-hidden">
-          <div ref={canvasContainerRef} className="flex-grow flex justify-center items-center bg-gray-100 relative overflow-auto min-w-0">
-            <Suspense fallback={<div className="flex-grow flex justify-center items-center bg-gray-100"><p>Loading Canvas...</p></div>}>
-              <Canvas
-                mapObjects={mapObjects}
-                setMapObjects={setMapObjects}
-                selectedObject={selectedObject}
-                setSelectedObject={setSelectedObject}
-                canvasSize={canvasSize}
-                placingObject={placingObject}
-                setPlacingObject={setPlacingObject}
-                keepAspectRatio={keepAspectRatio}
-                onUpdateObject={handleUpdateObject}
-              />
-            </Suspense>
-          </div>
+      <div className="flex flex-col flex-grow h-full">
+        <div className="flex-grow flex justify-center items-center overflow-auto p-4 h-full">
+            <div ref={canvasContainerRef} className="bg-base-100 shadow-lg rounded-lg">
+                <Suspense fallback={<div className="w-full h-full flex justify-center items-center"><p>Загрузка...</p></div>}>
+                  <Canvas
+                    mapObjects={mapObjects}
+                    setMapObjects={setMapObjects}
+                    selectedObject={selectedObject}
+                    setSelectedObject={setSelectedObject}
+                    canvasSize={canvasSize}
+                    placingObject={placingObject}
+                    setPlacingObject={setPlacingObject}
+                    keepAspectRatio={keepAspectRatio}
+                    onUpdateObject={handleUpdateObject}
+                  />
+                </Suspense>
+            </div>
         </div>
       </div>
-      {isRightPanelVisible && (
-        <div
-          className="relative bg-white dark:bg-zinc-950 border-l-2 border-gray-300 dark:border-zinc-700 flex-shrink-0 shadow-lg"
-          style={{ width: rightPanelWidth, minWidth: '250px', maxWidth: '600px' }}
+      <div
+          className="w-[350px] bg-base-100 border-l border-base-300 flex flex-col"
         >
-          <div
-            className="absolute top-0 bottom-0 -left-1 w-2 bg-blue-500 hover:bg-blue-600 cursor-col-resize z-10 opacity-50 hover:opacity-100 transition-opacity"
-            onMouseDown={handleResizeMouseDown}
-            title="Перетащите для изменения размера панели"
-          />
+          <div className="p-4 flex justify-between items-center border-b border-base-300">
+              <h2 className="text-lg font-semibold">Свойства</h2>
+              <button className="btn btn-sm btn-primary" onClick={handleSaveLevel} disabled={isSaving}>
+                  <Save size={16} />
+                  {isSaving ? 'Сохранение...' : 'Сохранить'}
+              </button>
+          </div>
           <RightPanel
             mapObjects={mapObjects}
             selectedObject={selectedObject}
@@ -361,7 +350,6 @@ export default function App() {
             setKeepAspectRatio={setKeepAspectRatio}
           />
         </div>
-      )}
     </div>
   );
 } 

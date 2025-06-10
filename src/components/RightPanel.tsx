@@ -70,225 +70,214 @@ const RightPanel: React.FC<RightPanelProps> = ({
 
   if (leftPanelContent === 'levels') {
     return (
-      <div className="card bg-base-100 shadow-xl m-4">
-        <div className="card-body">
-          <h2 className="card-title">Размеры уровня</h2>
-          <div className="form-control w-full">
-            <label className="label">
-              <span className="label-text">Ширина (пикс.)</span>
-            </label>
-            <input
-              type="number"
-              className="input input-bordered w-full"
-              value={canvasSize.width}
-              onChange={(e) => handleCanvasSizeChange('width', e.target.value)}
-              min={100}
-            />
-          </div>
-          <div className="form-control w-full">
-            <label className="label">
-              <span className="label-text">Высота (пикс.)</span>
-            </label>
-            <input
-              type="number"
-              className="input input-bordered w-full"
-              value={canvasSize.height}
-              onChange={(e) => handleCanvasSizeChange('height', e.target.value)}
-              min={100}
-            />
-          </div>
+      <div className="p-4">
+        <h2 className="text-lg font-semibold mb-4">Размеры уровня</h2>
+        <div className="space-y-4">
+            <div className="form-control w-full">
+              <label className="label">
+                <span className="label-text">Ширина (пикс.)</span>
+              </label>
+              <input
+                type="number"
+                className="input input-bordered w-full"
+                value={canvasSize.width}
+                onChange={(e) => handleCanvasSizeChange('width', e.target.value)}
+                min={100}
+              />
+            </div>
+            <div className="form-control w-full">
+              <label className="label">
+                <span className="label-text">Высота (пикс.)</span>
+              </label>
+              <input
+                type="number"
+                className="input input-bordered w-full"
+                value={canvasSize.height}
+                onChange={(e) => handleCanvasSizeChange('height', e.target.value)}
+                min={100}
+              />
+            </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-4 h-full flex flex-col">
-      <div className="tabs tabs-boxed w-full mb-4">
+    <div className="flex flex-col h-full">
+      <div className="tabs tabs-boxed flex-shrink-0 m-4">
         <a 
-          className={`tab ${view === 'properties' ? 'tab-active' : ''}`}
+          className={`tab flex-grow ${view === 'properties' ? 'tab-active' : ''}`}
           onClick={() => setView('properties')}
         >
           Свойства
         </a>
         <a 
-          className={`tab ${view === 'tree' ? 'tab-active' : ''}`}
+          className={`tab flex-grow ${view === 'tree' ? 'tab-active' : ''}`}
           onClick={() => setView('tree')}
         >
-          Дерево
+          Слои
         </a>
       </div>
       
-      {view === 'tree' && (
-        <div className="card bg-base-100 shadow-xl h-full">
-          <div className="card-body">
-            <h2 className="card-title">
-              Дерево объектов
-              <div className="badge badge-secondary">{mapObjects.length}</div>
-            </h2>
-            <div className="overflow-y-auto h-[calc(100vh-300px)]">
+      <div className="flex-grow overflow-y-auto p-4">
+        {view === 'tree' && (
+            <div>
+              <h2 className="text-lg font-semibold mb-2 flex justify-between items-center">
+                Слои объектов
+                <div className="badge badge-secondary">{mapObjects.length}</div>
+              </h2>
               <ObjectTree objects={mapObjects} onSelectObject={onSelectObject} selectedObject={selectedObject} />
             </div>
-          </div>
-        </div>
-      )}
-      
-      {view === 'properties' && (
-        <div className="card bg-base-100 shadow-xl h-full">
-          <div className="card-body">
-            <h2 className="card-title flex justify-between items-center">
-              Свойства объекта
-              {selectedObject && (
-                <div className="flex items-center gap-2">
-                  <button 
-                    className="btn btn-sm btn-ghost"
-                    onClick={() => onUpdateObject({ ...selectedObject, isLocked: !selectedObject.isLocked })}
-                  >
-                    {selectedObject.isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                  </button>
-                  <button 
-                    className="btn btn-sm btn-error"
-                    onClick={() => onDeleteObject(selectedObject.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+        )}
+        
+        {view === 'properties' && (
+          <div>
+              <h2 className="text-lg font-semibold mb-2 flex justify-between items-center">
+                Свойства объекта
+                {selectedObject && (
+                  <div className="flex items-center gap-2">
+                    <button 
+                      className="btn btn-sm btn-ghost btn-circle"
+                      title={selectedObject.isLocked ? "Разблокировать" : "Заблокировать"}
+                      onClick={() => onUpdateObject({ ...selectedObject, isLocked: !selectedObject.isLocked })}
+                    >
+                      {selectedObject.isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                    </button>
+                    <button 
+                      className="btn btn-sm btn-ghost btn-circle text-error"
+                      title="Удалить"
+                      onClick={() => onDeleteObject(selectedObject.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </h2>
+              
+              {!selectedObject ? (
+                <div className="text-center py-8">
+                  <p className="text-base-content opacity-70">Объект не выбран</p>
+                  <p className="text-sm text-base-content opacity-50 mt-2">
+                    Выберите объект на карте для редактирования его свойств
+                  </p>
                 </div>
-              )}
-            </h2>
-            
-            {!selectedObject ? (
-              <div className="text-center py-8">
-                <p className="text-base-content opacity-70">Объект не выбран</p>
-                <p className="text-sm text-base-content opacity-50 mt-2">
-                  Выберите объект на карте для редактирования его свойств
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-y-auto h-[calc(100vh-400px)]">
+              ) : (
                 <div className="space-y-4">
-                  <div className="form-control w-full">
-                    <label className="label">
-                      <span className="label-text">Имя</span>
-                    </label>
-                    <input
-                      className="input input-bordered w-full"
-                      value={selectedObject.name}
-                      onChange={(event) => onUpdateObject({ ...selectedObject, name: event.currentTarget.value })}
-                    />
-                  </div>
-                  <div className="form-control w-full">
-                    <label className="label">
-                      <span className="label-text">Ширина (пикс.)</span>
-                    </label>
-                    <input
-                      className="input input-bordered w-full"
-                      type="number"
-                      value={Math.round(selectedObject.width)}
-                      onChange={(e) => handleInputChange('width', e.target.value)}
-                      min={1}
-                    />
-                  </div>
-                  <div className="form-control w-full">
-                    <label className="label">
-                      <span className="label-text">Высота (пикс.)</span>
-                    </label>
-                    <input
-                      className="input input-bordered w-full"
-                      type="number"
-                      value={Math.round(selectedObject.height)}
-                      onChange={(e) => handleInputChange('height', e.target.value)}
-                      min={1}
-                    />
-                  </div>
-                  {selectedObject.originalWidth && (
                     <div className="form-control w-full">
                       <label className="label">
-                        <span className="label-text">Ширина (%)</span>
+                        <span className="label-text">Имя</span>
+                      </label>
+                      <input
+                        className="input input-bordered w-full"
+                        value={selectedObject.name}
+                        onChange={(event) => onUpdateObject({ ...selectedObject, name: event.currentTarget.value })}
+                      />
+                    </div>
+                    <div className="form-control w-full">
+                      <label className="label">
+                        <span className="label-text">Ширина (пикс.)</span>
                       </label>
                       <input
                         className="input input-bordered w-full"
                         type="number"
-                        value={Math.round((selectedObject.width / selectedObject.originalWidth) * 100)}
-                        onChange={(e) => handleInputChange('widthPercent', e.target.value)}
+                        value={Math.round(selectedObject.width)}
+                        onChange={(e) => handleInputChange('width', e.target.value)}
                         min={1}
                       />
                     </div>
-                  )}
-                  {selectedObject.originalHeight && (
                     <div className="form-control w-full">
                       <label className="label">
-                        <span className="label-text">Высота (%)</span>
+                        <span className="label-text">Высота (пикс.)</span>
                       </label>
                       <input
                         className="input input-bordered w-full"
                         type="number"
-                        value={Math.round((selectedObject.height / selectedObject.originalHeight) * 100)}
-                        onChange={(e) => handleInputChange('heightPercent', e.target.value)}
+                        value={Math.round(selectedObject.height)}
+                        onChange={(e) => handleInputChange('height', e.target.value)}
                         min={1}
                       />
                     </div>
-                  )}
-                  <div className="form-control">
-                    <label className="label cursor-pointer">
-                      <span className="label-text">Сохранять пропорции</span>
+                    {selectedObject.originalWidth && (
+                      <div className="form-control w-full">
+                        <label className="label">
+                          <span className="label-text">Ширина (%)</span>
+                        </label>
+                        <input
+                          className="input input-bordered w-full"
+                          type="number"
+                          value={Math.round((selectedObject.width / selectedObject.originalWidth) * 100)}
+                          onChange={(e) => handleInputChange('widthPercent', e.target.value)}
+                          min={1}
+                        />
+                      </div>
+                    )}
+                    {selectedObject.originalHeight && (
+                      <div className="form-control w-full">
+                        <label className="label">
+                          <span className="label-text">Высота (%)</span>
+                        </label>
+                        <input
+                          className="input input-bordered w-full"
+                          type="number"
+                          value={Math.round((selectedObject.height / selectedObject.originalHeight) * 100)}
+                          onChange={(e) => handleInputChange('heightPercent', e.target.value)}
+                          min={1}
+                        />
+                      </div>
+                    )}
+                    <div className="form-control">
+                      <label className="label cursor-pointer">
+                        <span className="label-text">Сохранять пропорции</span>
+                        <input
+                          type="checkbox"
+                          className="toggle toggle-primary"
+                          checked={keepAspectRatio}
+                          onChange={(e) => setKeepAspectRatio(e.target.checked)}
+                        />
+                      </label>
+                    </div>
+                    <div className="form-control w-full">
+                      <label className="label">
+                        <span className="label-text">X координата</span>
+                      </label>
                       <input
-                        type="checkbox"
-                        className="toggle toggle-primary"
-                        checked={keepAspectRatio}
-                        onChange={(e) => setKeepAspectRatio(e.target.checked)}
+                        className="input input-bordered w-full"
+                        type="number"
+                        value={Math.round(selectedObject.x)}
+                        onChange={(e) => handleInputChange('x', Number(e.target.value))}
                       />
-                    </label>
-                  </div>
-                  <div className="form-control w-full">
-                    <label className="label">
-                      <span className="label-text">X координата</span>
-                    </label>
-                    <input
-                      className="input input-bordered w-full"
-                      type="number"
-                      value={Math.round(selectedObject.x)}
-                      onChange={(e) => handleInputChange('x', Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="form-control w-full">
-                    <label className="label">
-                      <span className="label-text">Y координата</span>
-                    </label>
-                    <input
-                      className="input input-bordered w-full"
-                      type="number"
-                      value={Math.round(selectedObject.y)}
-                      onChange={(e) => handleInputChange('y', Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="form-control">
-                    <label className="label cursor-pointer">
-                      <span className="label-text">Отразить по горизонтали</span>
+                    </div>
+                    <div className="form-control w-full">
+                      <label className="label">
+                        <span className="label-text">Y координата</span>
+                      </label>
                       <input
-                        type="checkbox"
-                        className="toggle toggle-primary"
-                        checked={selectedObject.flipX}
-                        onChange={(e) => onUpdateObject({ ...selectedObject, flipX: e.target.checked })}
+                        className="input input-bordered w-full"
+                        type="number"
+                        value={Math.round(selectedObject.y)}
+                        onChange={(e) => handleInputChange('y', Number(e.target.value))}
                       />
-                    </label>
+                    </div>
+
+                    <div className="flex space-x-2">
+                        <button
+                            className="btn btn-sm btn-outline w-full"
+                            onClick={() => onUpdateObject({ ...selectedObject, flipX: !selectedObject.flipX })}
+                        >
+                            Отразить по X
+                        </button>
+                        <button
+                            className="btn btn-sm btn-outline w-full"
+                            onClick={() => onUpdateObject({ ...selectedObject, flipY: !selectedObject.flipY })}
+                        >
+                            Отразить по Y
+                        </button>
+                    </div>
                   </div>
-                  <div className="form-control">
-                    <label className="label cursor-pointer">
-                      <span className="label-text">Отразить по вертикали</span>
-                      <input
-                        type="checkbox"
-                        className="toggle toggle-primary"
-                        checked={selectedObject.flipY}
-                        onChange={(e) => onUpdateObject({ ...selectedObject, flipY: e.target.checked })}
-                      />
-                    </label>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+              )}
+            </div>
+        )}
+      </div>
     </div>
   );
 };

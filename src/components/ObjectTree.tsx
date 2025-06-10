@@ -1,7 +1,5 @@
 import React from 'react';
 import { MapObject } from '../App';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 
 interface ObjectTreeProps {
   objects: MapObject[];
@@ -35,16 +33,14 @@ const ObjectTree: React.FC<ObjectTreeProps> = ({ objects, onSelectObject, select
     <div className="pl-4">
       {nodes.map(node => (
         <div key={node.id}>
-          <Button
-            variant="ghost"
+          <button
             onClick={() => onSelectObject(node)}
-            className={cn(
-              'w-full justify-start px-2 py-1 h-auto',
-              selectedObject?.id === node.id && 'bg-accent text-accent-foreground'
-            )}
+            className={`btn btn-ghost w-full justify-start px-2 py-1 h-auto font-normal text-left ${
+              selectedObject?.id === node.id ? 'btn-active btn-accent' : ''
+            }`}
           >
             <span className="text-sm">{node.name}</span>
-          </Button>
+          </button>
           {node.children && node.children.length > 0 && renderTree(node.children)}
         </div>
       ))}

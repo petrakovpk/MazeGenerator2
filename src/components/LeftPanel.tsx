@@ -93,14 +93,13 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
   extraDimensions,
   onExtraDimensionChange,
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<ObjectCategory | null>('islands');
   const [selectedItemForSizing, setSelectedItemForSizing] = useState<string | null>(null);
   const [keepAspectRatio, setKeepAspectRatio] = useState(true);
   const [itemSize, setItemSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
 
   useEffect(() => {
     setSelectedItemForSizing(null);
-  }, [selectedCategory]);
+  }, [content]);
 
   const handleItemClick = (item: { name: string; image: string }) => {
     if (placingObject?.name === item.name) {
@@ -111,12 +110,12 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
       img.src = item.image;
       img.onload = () => {
         let width, height;
-        const isFruit = selectedCategory === 'fruits';
-        const isStone = selectedCategory === 'stones';
-        const isWater = selectedCategory === 'water';
-        const isTree = selectedCategory === 'trees';
-        const isFinish = selectedCategory === 'finish';
-        const isExtra = selectedCategory === 'extra';
+        const isFruit = content === 'fruits';
+        const isStone = content === 'stones';
+        const isWater = content === 'water';
+        const isTree = content === 'trees';
+        const isFinish = content === 'finish';
+        const isExtra = content === 'extra';
         
         let dimensions = fruitDimensions;
         if (isStone) dimensions = stoneDimensions;
@@ -190,9 +189,9 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
   };
 
   const handleDimensionSave = () => {
-    if (!selectedItemForSizing || !selectedCategory) return;
+    if (!selectedItemForSizing || !content) return;
 
-    switch (selectedCategory) {
+    switch (content) {
       case 'fruits':
         onFruitDimensionChange(selectedItemForSizing, itemSize);
         break;
@@ -292,23 +291,23 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
     }));
 
     return (
-      <div>
-        <div className="p-2 bg-base-200">
-          <h2 className="text-lg font-medium mb-2">Категории объектов</h2>
-          <div className="flex flex-wrap gap-1">
+      <div className="flex flex-col h-full">
+        <div className="p-4 bg-base-200/30 border-b border-base-300">
+          <h2 className="text-lg font-semibold mb-2">Категории</h2>
+          <div className="tabs tabs-boxed w-full">
             {categories.map((category) => (
-              <button
+              <a
                 key={category.id}
-                className={`btn btn-sm ${content === category.id ? 'btn-primary' : 'btn-outline'}`}
+                className={`tab flex-grow ${content === category.id ? 'tab-active' : ''}`}
                 onClick={() => setContent(category.id)}
               >
                 {category.name}
-              </button>
+              </a>
             ))}
           </div>
         </div>
 
-        <div className="p-4">
+        <div className="flex-grow overflow-y-auto p-4">
           <h2 className="text-xl font-bold mb-4">{
             content === 'islands' ? 'Остров' :
             content === 'start' ? 'Старт' :
@@ -325,63 +324,77 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
               {data[content]?.map((item, index) => (
                 <div 
                   key={`${item.name}-${index}`}
-                  className={`flex flex-col items-center p-2 rounded-lg cursor-pointer transition-all border ${placingObject?.name === item.name ? 'border-primary bg-primary/20' : 'border-base-300 hover:bg-base-200'}`}
+                  className={`flex flex-col items-center justify-center p-2 rounded-lg cursor-pointer transition-all border-2 ${placingObject?.name === item.name ? 'border-primary bg-primary/10' : 'border-transparent hover:bg-base-200'}`}
                   onClick={() => handleItemClick(item)}
                 >
-                  <div className="relative w-16 h-16 flex items-center justify-center">
+                  <div className="w-16 h-16 flex items-center justify-center">
                     <img
                       src={item.image}
                       alt={item.name}
-                      width={64}
-                      height={64}
-                      className="object-contain max-h-16"
+                      className="max-w-full max-h-full object-contain"
                     />
                   </div>
+                  <span className="text-xs mt-1 text-center break-all">{item.name}</span>
                 </div>
               ))}
             </div>
           )}
 
           {selectedItemForSizing && SIZABLE_CATEGORIES.includes(content as ObjectCategory) && (
-            <div className="mt-4 p-3 border border-base-300 rounded-lg bg-base-100">
-              <h3 className="font-medium mb-2">Настройка размера</h3>
+            <div className="mt-4 p-4 border-t border-base-300 bg-base-200/30 rounded-lg">
+              <h3 className="text-lg font-semibold mb-3">
+                Размер для{' '}
+                <span className="font-bold text-primary">{
+                  (SINGULAR_RUSSIAN_MAP[content as ObjectCategory] || 'объекта') + ' ' + selectedItemForSizing
+                }</span>
+              </h3>
               
-              <div className="form-control w-full">
-                <label className="label">
-                  <span className="label-text">Ширина (пикс.)</span>
-                </label>
-                <input
-                  className="input input-bordered w-full"
-                  type="number"
-                  value={Math.round(itemSize.width)}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleDimensionChange('width', e.target.value, content as any)}
-                  min={1}
-                />
-              </div>
-              
-              <div className="form-control w-full mt-2">
-                <label className="label">
-                  <span className="label-text">Высота (пикс.)</span>
-                </label>
-                <input
-                  className="input input-bordered w-full"
-                  type="number"
-                  value={Math.round(itemSize.height)}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleDimensionChange('height', e.target.value, content as any)}
-                  min={1}
-                />
-              </div>
-              
-              <div className="form-control mt-2">
+              <div className="form-control">
                 <label className="label cursor-pointer">
-                  <span className="label-text">Сохранять пропорции</span>
-                  <input
-                    type="checkbox"
-                    className="toggle toggle-primary"
-                    checked={keepAspectRatio}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKeepAspectRatio(e.target.checked)}
+                  <span className="label-text">Сохранять пропорции</span> 
+                  <input 
+                    type="checkbox" 
+                    className="toggle toggle-primary" 
+                    checked={keepAspectRatio} 
+                    onChange={(e) => setKeepAspectRatio(e.target.checked)}
                   />
                 </label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">Ширина</span>
+                  </label>
+                  <input
+                    type="number"
+                    className="input input-sm input-bordered"
+                    value={Math.round(itemSize.width)}
+                    onChange={(e) => {
+                      if (SIZABLE_CATEGORIES.includes(content as ObjectCategory)) {
+                        handleDimensionChange('width', e.target.value, content as any)
+                      }
+                    }}
+                    min={8}
+                  />
+                </div>
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">Высота</span>
+                  </label>
+                  <input
+                    type="number"
+                    className="input input-sm input-bordered"
+                    value={Math.round(itemSize.height)}
+                    onChange={(e) => {
+                      if (SIZABLE_CATEGORIES.includes(content as ObjectCategory)) {
+                        handleDimensionChange('height', e.target.value, content as any)
+                      }
+                    }}
+                    min={8}
+                    disabled={keepAspectRatio}
+                  />
+                </div>
               </div>
               
               <button
@@ -398,10 +411,8 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col border-r bg-base-100">
-      <div className="overflow-auto">
-        {renderContent()}
-      </div>
+    <div className="h-full flex flex-col overflow-y-auto">
+      {renderContent()}
     </div>
   );
 };
