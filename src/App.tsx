@@ -48,6 +48,9 @@ export default function App() {
   const [levels, setLevels] = useState<Levels>({});
   const [currentLevelName, setCurrentLevelName] = useState('');
   const [mapObjects, setMapObjects] = useState<MapObject[]>([]);
+  const [history, setHistory] = useState<MapObject[][]>([[]]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const [isDirty, setIsDirty] = useState(false);
   const [selectedObject, setSelectedObject] = useState<MapObject | null>(null);
   const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [lastSelectedObjectId, setLastSelectedObjectId] = useState<string | null>(null);
@@ -72,6 +75,20 @@ export default function App() {
   const [leftPanelSize, setLeftPanelSize] = useState(20);
   const [rightPanelSize, setRightPanelSize] = useState(20);
 
+  const updateMapObjects = (newObjects: MapObject[] | ((prev: MapObject[]) => MapObject[]), fromHistory = false) => {
+    const resolvedObjects = typeof newObjects === 'function' ? newObjects(mapObjects) : newObjects;
+    
+    setMapObjects(resolvedObjects);
+
+    if (!fromHistory) {
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(resolvedObjects);
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+      setIsDirty(true);
+    }
+  };
+
   const handleMoveObject = (id: string, direction: 'up' | 'down') => {
     const index = mapObjects.findIndex(o => o.id === id);
     if (index === -1) return;
@@ -82,12 +99,12 @@ export default function App() {
     if (direction === 'up') {
         if (index > 0) {
             newObjects.splice(index - 1, 0, item);
-            setMapObjects(newObjects);
+            updateMapObjects(newObjects);
         }
     } else {
         if (index < newObjects.length) {
             newObjects.splice(index + 1, 0, item);
-            setMapObjects(newObjects);
+            updateMapObjects(newObjects);
         }
     }
   };
@@ -96,7 +113,7 @@ export default function App() {
     const result = Array.from(mapObjects);
     const [removed] = result.splice(startIndex, 1);
     result.splice(endIndex, 0, removed);
-    setMapObjects(result);
+    updateMapObjects(result);
   };
 
   const handleSetSelectedObjectIds = (ids: string[]) => {
@@ -216,7 +233,11 @@ export default function App() {
   const loadLevel = (name: string, allLevels: Levels) => {
     const levelData = allLevels[name];
     if (levelData) {
-      setMapObjects(levelData.objects || []);
+      const newObjects = levelData.objects || [];
+      setMapObjects(newObjects);
+      setHistory([newObjects]);
+      setHistoryIndex(0);
+      setIsDirty(false);
       setCanvasSize(levelData.dimensions || { width: 800, height: 600 });
       setCurrentLevelName(name);
       setSelectedObject(null);
@@ -283,6 +304,10 @@ export default function App() {
         toast.success('Сохранено', {
             description: `Уровень "${currentLevelName}" успешно сохранен.`,
         });
+        setIsDirty(false);
+        // Reset history baseline
+        setHistory([mapObjects]);
+        setHistoryIndex(0);
     } catch (error) {
         console.error('Ошибка при сохранении уровня:', error);
         toast.error('Ошибка сохранения', {
@@ -341,7 +366,7 @@ export default function App() {
 
   const handleUpdateObject = (updatedAttrs: Partial<MapObject>) => {
     if (selectedObjectIds.length > 0) {
-        setMapObjects(currentObjects =>
+        updateMapObjects(currentObjects =>
             currentObjects.map(obj =>
                 selectedObjectIds.includes(obj.id) ? { ...obj, ...updatedAttrs } : obj
             )
@@ -354,7 +379,7 @@ export default function App() {
 
   const handleDeleteObject = (id: string) => {
     const idsToDelete = selectedObjectIds.length > 1 ? selectedObjectIds : [id];
-    setMapObjects(currentObjects => currentObjects.filter(obj => !idsToDelete.includes(obj.id)));
+    updateMapObjects(currentObjects => currentObjects.filter(obj => !idsToDelete.includes(obj.id)));
     setSelectedObject(null);
     setSelectedObjectIds([]);
   };
@@ -364,7 +389,7 @@ export default function App() {
       ...obj,
       id: `${Date.now()}-${Math.random()}`,
     };
-    setMapObjects(currentObjects => [...currentObjects, newObject]);
+    updateMapObjects(currentObjects => [...currentObjects, newObject]);
     setSelectedObject(newObject);
     setSelectedObjectIds([newObject.id]);
   };
@@ -378,7 +403,7 @@ export default function App() {
         x: objectToClone.x + 20,
         y: objectToClone.y + 20,
       };
-      setMapObjects(currentObjects => [...currentObjects, newObject]);
+      updateMapObjects(currentObjects => [...currentObjects, newObject]);
       setSelectedObject(newObject);
     }
   };
@@ -412,7 +437,8 @@ export default function App() {
     
     const updatedChildren = children.map(child => ({ ...child, parentId: newGroupId }));
 
-    setMapObjects([...newMapObjects, newGroup, ...updatedChildren]);
+    const finalObjects = [...newMapObjects, newGroup, ...updatedChildren];
+    updateMapObjects(finalObjects);
     setSelectedObjectIds([newGroupId]);
     setSelectedObject(newGroup);
   };
@@ -424,6 +450,45 @@ export default function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'z') {
+          e.preventDefault();
+          if (!e.shiftKey) { // Undo
+            if (historyIndex > 0) {
+              const newIndex = historyIndex - 1;
+              setHistoryIndex(newIndex);
+              setMapObjects(history[newIndex]);
+              setIsDirty(newIndex !== 0);
+              setSelectedObject(null);
+              setSelectedObjectIds([]);
+            }
+          } else { // Redo
+            if (historyIndex < history.length - 1) {
+              const newIndex = historyIndex + 1;
+              setHistoryIndex(newIndex);
+              setMapObjects(history[newIndex]);
+              setIsDirty(newIndex !== 0);
+              setSelectedObject(null);
+              setSelectedObjectIds([]);
+            }
+          }
+          return;
+        }
+         if (e.key === 'y') {
+           e.preventDefault();
+           // Redo
+            if (historyIndex < history.length - 1) {
+              const newIndex = historyIndex + 1;
+              setHistoryIndex(newIndex);
+              setMapObjects(history[newIndex]);
+              setIsDirty(newIndex !== 0);
+              setSelectedObject(null);
+              setSelectedObjectIds([]);
+            }
+          return;
+        }
+      }
+
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
@@ -537,7 +602,7 @@ export default function App() {
               
               <div className="flex-grow"></div>
               
-              <button className="btn btn-primary" onClick={handleSaveLevel} disabled={isSaving}>
+              <button className="btn btn-primary" onClick={handleSaveLevel} disabled={isSaving || !isDirty}>
                 {isSaving ? <span className="loading loading-spinner"></span> : <Save />}
                 Сохранить
               </button>
